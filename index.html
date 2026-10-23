@@ -129,6 +129,25 @@ main{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
 .um{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--line)}
 .um code{font:500 13px var(--mono);background:var(--surface-2);border:1px solid var(--line);padding:3px 8px;border-radius:6px;overflow-wrap:anywhere}
 .um .w{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.um .sug{display:flex;gap:6px;align-items:center;flex:0 1 460px;min-width:0}
+.um .sug select{flex:1;min-width:0;height:32px;font-size:13px}
+.um .sug .none{font-size:12.5px;color:var(--muted);flex:1;text-align:right}
+.psug{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}
+.psug button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:99px;padding:4px 10px;font-size:12px;cursor:pointer;transition:border-color .15s,background .15s}
+.psug button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.hintline{font-size:12px;color:var(--accent-ink);margin-top:4px}
+.flt{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.flt button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.flt button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.fl{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);max-height:40vh;overflow:auto}
+.fl li{border-top:1px solid var(--line)}
+.fl li:first-child{border:0}
+.fl label{display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;font-size:13px}
+.fl label:hover{background:var(--surface-2)}
+.fl input{accent-color:var(--accent);width:16px;height:16px;flex:none}
+.fl small{margin-left:auto;color:var(--muted);white-space:nowrap;font-size:11.5px}
+.fgrp{font-size:12px;font-weight:600;color:var(--ink-2);margin:14px 0 6px;display:flex;justify-content:space-between;align-items:center}
+.fgrp button{border:0;background:none;color:var(--accent-ink);cursor:pointer;font-size:12px}
 
 .sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 2px 10px}
 .sec-h h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
@@ -248,6 +267,8 @@ pre.xml .t{color:var(--accent-ink)}
   main{padding:20px 16px 60px}
   .brand small,.badge .lbl,#mastersBtn .lbl{display:none}
   .grid2,.grid3,.adj{grid-template-columns:1fr}
+  .um{flex-wrap:wrap}
+  .um .sug{flex:1 1 100%}
   .chev{display:none}
   .vc-h{padding:12px 12px 12px 14px;gap:10px}
   .bar .btn{flex:1}
@@ -336,9 +357,10 @@ pre.xml .t{color:var(--accent-ink)}
   <div class="dlg-b">
     <input type="hidden" name="id">
     <label class="fld"><span>Tally product (stock item)</span><input class="in" name="product" list="dlProducts" required autocomplete="off" placeholder="e.g. Gi Sheet Weldmesh 3mm"><small id="pHint">Pick an existing product to add this name to it, or type a new one.</small></label>
+    <div class="psug" id="pSug"></div>
     <label class="fld"><span>Names in production file</span><textarea class="in" name="aliases" rows="2" placeholder="40x40x2.9mmx4x12; 40x40x2.9mmx5x12"></textarea><small>Separate with a semicolon ( ; )</small></label>
     <div class="grid3">
-      <label class="fld" style="grid-column:span 2"><span>Wire used (stock item)</span><input class="in" name="wireItem" list="dlWires" required autocomplete="off" placeholder="e.g. GI WIRE 3MM"></label>
+      <label class="fld" style="grid-column:span 2"><span>Wire used (stock item)</span><input class="in" name="wireItem" list="dlWires" required autocomplete="off" placeholder="e.g. GI WIRE 3MM"><div class="hintline" id="wireHint" hidden></div></label>
       <label class="fld"><span>Wire size mm</span><input class="in num" name="wireMm" inputmode="decimal" placeholder="auto"></label>
     </div>
     <div class="grid2">
@@ -348,6 +370,13 @@ pre.xml .t{color:var(--accent-ink)}
   </div>
   <div class="dlg-f"><button type="button" class="btn danger ghost" id="pDel" style="margin-right:auto"><svg class="i"><use href="#i-trash"/></svg>Delete</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri" id="pSave" value="save">Save</button></div>
 </form></dialog>
+
+<!-- similar wire fill -->
+<dialog id="fDlg"><div class="dlg" style="width:600px">
+  <div class="dlg-h"><h3 id="fTitle">Use the same wire for similar products?</h3><button type="button" class="btn icon ghost" data-close><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="dlg-b" id="fBody"></div>
+  <div class="dlg-f"><button class="btn" data-close>Skip</button><button class="btn pri" id="fGo">Fill wire</button></div>
+</div></dialog>
 
 <!-- masters -->
 <dialog id="mDlg"><div class="dlg" style="width:980px;height:min(720px,calc(100vh - 40px))">
@@ -363,6 +392,7 @@ pre.xml .t{color:var(--accent-ink)}
         <div style="position:relative;flex:1"><svg class="i" style="position:absolute;left:10px;top:10px;color:var(--muted)"><use href="#i-search"/></svg><input class="in" id="pSearch" placeholder="Search products, names, wire…" style="padding-left:32px"></div>
         <button class="btn pri" id="pAdd"><svg class="i"><use href="#i-plus"/></svg>Add</button>
       </div>
+      <div class="flt" id="pFlt"></div>
       <table class="ptable"><thead><tr><th>Tally product</th><th>Names in production file</th><th>Wire</th><th style="text-align:right">Rate</th><th>Godown</th></tr></thead><tbody id="pRows"></tbody></table>
     </div>
     <div data-pane="set" hidden>
@@ -700,6 +730,19 @@ async function saveProduct(p) {
   LS.set('masters', st.m);
   return p;
 }
+async function saveProducts(list) {
+  if (!list.length) return;
+  if (cloudOn()) {
+    try { const j = await withSync(() => api('saveProducts', { products: list })); list = j.products; }
+    catch (e) {
+      if (!/unknown action/i.test(e.message)) throw e;
+      const out = []; for (const p of list) out.push(await saveProduct(p)); return out;   // older script: one by one
+    }
+  }
+  list.forEach(p => { const i = st.m.products.findIndex(x => x.id === p.id); if (i >= 0) st.m.products[i] = p; else st.m.products.push(p); });
+  LS.set('masters', st.m);
+  return list;
+}
 async function deleteProduct(id) {
   if (cloudOn()) await withSync(() => api('deleteProduct', { id }));
   st.m.products = st.m.products.filter(x => x.id !== id);
@@ -837,12 +880,72 @@ function renderStats() {
   $('#zipBtn').disabled = $('#combinedBtn').disabled = !ok.length;
   $('#zipBtn').innerHTML = icon('zip') + `Download all${ok.length ? ` (${ok.length})` : ''}`;
 }
+/* ═══════════ smart matching (production name ↔ Tally product) ═══════════ */
+const DIM_RE = /\d+(?:\.\d+)?(?:\/\d+)?\s*(?:mm|ft|mtr|m)?(?:\s*x\s*\d+(?:\.\d+)?(?:\/\d+)?\s*(?:mm|ft|mtr|m)?)+/i;
+const featCache = new Map();
+function feat(name) {
+  const key = String(name || '');
+  if (featCache.has(key)) return featCache.get(key);
+  const s = key.toLowerCase();
+  const type = /chain|\bch\b/.test(s) ? 'chain' : /barb|sada/.test(s) ? 'barbed' : 'mesh';
+  const m = s.match(DIM_RE);
+  const prefix = (m ? s.slice(0, m.index) : s).replace(/[^a-z]+/g, ' ').trim();
+  const toks = m ? m[0].split(/\s*x\s*/).map(t => { const q = t.match(/^(\d+(?:\.\d+)?)(?:\/(\d+))?\s*([a-z]*)/) || []; return { v: q[2] ? +q[1] / +q[2] : +q[1], u: q[3] || '' }; }).filter(t => isFinite(t.v)) : [];
+  let wi = toks.findIndex((t, i) => i >= 2 && t.u === 'mm' && t.v < 10);
+  if (wi < 0 && toks.length >= 3 && toks[2].v < 10 && !toks[2].u) wi = 2;
+  const f = {
+    type, prefix,
+    ap: wi >= 0 ? toks.slice(0, wi).map(t => t.v) : toks.map(t => t.v),
+    wire: wi >= 0 ? toks[wi].v : NaN,
+    dims: wi >= 0 ? toks.slice(wi + 1).map(t => t.v) : [],
+    words: new Set(s.replace(/[^a-z]+/g, ' ').split(' ').filter(w => w.length >= 3 && !['weldmesh', 'mesh', 'wire', 'mtr'].includes(w))),
+  };
+  featCache.set(key, f);
+  return f;
+}
+const famKey = f => `${f.prefix}|${f.ap.join('x')}|${isFinite(f.wire) ? f.wire : ''}`;
+const sameArr = (x, y) => x.length === y.length && x.every((v, i) => Math.abs(v - y[i]) < 1e-6);
+function matchScore(a, p) {
+  let sc = 0;
+  if (a.type !== p.type) sc -= 80; else if (a.type !== 'mesh') sc += 15;
+  if (a.ap.length && p.ap.length) sc += sameArr(a.ap, p.ap) ? 40 : sameArr(a.ap, [...p.ap].reverse()) ? 30 : -30;
+  if (isFinite(a.wire) && isFinite(p.wire)) { const d = Math.abs(a.wire - p.wire); sc += d < 0.005 ? 30 : d <= 0.105 ? 25 : d <= 0.205 ? 15 : d <= 0.355 ? 5 : -20; }
+  const left = a.dims.slice();
+  p.dims.forEach(v => { const i = left.findIndex(x => Math.abs(x - v) < 1e-6); if (i >= 0) { sc += 12; left.splice(i, 1); } else sc -= 15; });
+  a.words.forEach(w => { if (p.words.has(w)) sc += 4; });
+  return sc;
+}
+function suggest(alias, n = 6) {
+  const a = feat(alias);
+  return st.m.products.map(p => ({ p, sc: matchScore(a, feat(p.product)) })).filter(x => x.sc >= 20)
+    .sort((x, y) => y.sc - x.sc || x.p.product.localeCompare(y.p.product)).slice(0, n);
+}
+const addAlias = (list, al) => { const a = String(list || '').split(';').map(x => x.trim()).filter(Boolean); if (al && !a.some(x => norm(x) === norm(al))) a.push(al); return a.join('; '); };
+const wireMmOf = x => { const n = Number(x.wireMm); return String(x.wireMm).trim() !== '' && isFinite(n) ? n : parseMm(x.wireItem); };
+function wireGuess(p, alias) {
+  const fp = feat(p.product), k = famKey(fp);
+  const sib = st.m.products.find(x => x.id !== p.id && x.wireItem && famKey(feat(x.product)) === k);
+  if (sib) return { item: sib.wireItem, mm: sib.wireMm, why: 'Same as ' + sib.product };
+  const fa = alias ? feat(alias) : null;
+  const mm = fa && isFinite(fa.wire) ? fa.wire : fp.wire;
+  if (!isFinite(mm)) return null;
+  const known = st.m.products.find(x => x.wireItem && Math.abs(wireMmOf(x) - mm) < 1e-6);
+  if (known) return { item: known.wireItem, mm: String(mm), why: `${mm}mm wire, as used on other products` };
+  return { item: `GI Wire ${mm}mm`, mm: String(mm), why: `From the ${mm}mm in the name — check the name matches Tally` };
+}
+
 function renderUnmapped() {
   const u = built.unmapped, el = $('#unmapped');
   if (!u.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="panel warn">
-    <div class="panel-h"><div class="pi">${icon('link')}</div><div><b>${u.length} name${u.length > 1 ? 's' : ''} not linked to a Tally product</b><p>Link each once — it is saved to the sheet and remembered for every future file.</p></div></div>
-    ${u.map((x, i) => `<div class="um"><div class="w"><code>${h(x.alias)}</code><span class="chip">${h([x.lines[0].section, x.lines[0].team].filter(Boolean).join(' · '))}</span><span class="num muted">${kg(x.kg)} kg</span></div><button class="btn sm pri" data-link="${i}">${icon('link')}Link</button></div>`).join('')}
+    <div class="panel-h"><div class="pi">${icon('link')}</div><div><b>${u.length} name${u.length > 1 ? 's' : ''} not linked to a Tally product</b><p>The closest Tally products are suggested — check and press Link. Saved to the sheet for every future file.</p></div></div>
+    ${u.map((x, i) => {
+      const sg = suggest(x.alias);
+      const opts = sg.map(({ p }) => `<option value="${h(p.id)}">${h(p.product)}${p.wireItem ? '' : '  · wire not set'}</option>`).join('');
+      return `<div class="um"><div class="w"><code>${h(x.alias)}</code><span class="chip">${h([x.lines[0].section, x.lines[0].team].filter(Boolean).join(' · '))}</span><span class="num muted">${kg(x.kg)} kg</span></div>
+        <div class="sug">${sg.length ? `<select class="in" data-sel="${i}" title="Suggested Tally product">${opts}<option value="__pick">Other product…</option></select>` : `<span class="none">No close match</span>`}
+        <button class="btn sm pri" data-link="${i}">${icon('link')}${sg.length ? 'Link' : 'Choose…'}</button></div></div>`;
+    }).join('')}
   </div>`;
 }
 function srcLabel(l) { return [l.section, l.shift, l.team].filter(Boolean).join(' · '); }
@@ -983,12 +1086,26 @@ $('#vouchers').addEventListener('change', e => {
   if (!Object.keys(st.ov[id]).length) delete st.ov[id];
   renderAll();
 });
-$('#unmapped').addEventListener('click', e => {
+$('#unmapped').addEventListener('click', async e => {
   const b = e.target.closest('[data-link]'); if (!b) return;
-  const u = built.unmapped[+b.dataset.link];
-  const mm = parseMm(u.alias);
-  openProduct(null, u.alias, isFinite(mm) ? mm : '');
+  const i = +b.dataset.link, u = built.unmapped[i];
+  const sel = $(`[data-sel="${i}"]`), id = sel ? sel.value : '__pick';
+  const mm = feat(u.alias).wire;
+  if (id === '__pick') return openProduct(null, u.alias, isFinite(mm) ? mm : '');
+  const p = st.m.products.find(x => x.id === id); if (!p) return;
+  if (!p.wireItem) return openProduct(p, u.alias);          // needs a wire → short form
+  if (aliasClash(p.id, u.alias)) return;
+  b.disabled = true;
+  try { await saveProduct(Object.assign({}, p, { aliases: addAlias(p.aliases, u.alias) })); toast(`Linked ${u.alias} → ${p.product}`); renderAll(); }
+  catch (err) { b.disabled = false; }
 });
+$('#unmapped').addEventListener('change', e => { const s2 = e.target.closest('[data-sel]'); if (s2 && s2.value === '__pick') { const u = built.unmapped[+s2.dataset.sel]; const mm = feat(u.alias).wire; s2.selectedIndex = 0; openProduct(null, u.alias, isFinite(mm) ? mm : ''); } });
+function aliasClash(id, aliases) {
+  const mine = String(aliases).split(';').map(norm).filter(Boolean);
+  const c = st.m.products.find(x => x.id !== id && String(x.aliases || '').split(';').map(norm).some(a => mine.includes(a)));
+  if (c) toast(`A name here is already linked to “${c.product}”`, true);
+  return !!c;
+}
 
 function preview(id) {
   const v = built.vouchers.find(x => x.id === id); if (!v || !v.calc) return;
@@ -1042,39 +1159,62 @@ function updateRateHint() {
   $('#rateHint').textContent = isFinite(r.rate) ? `Auto: ₹${r.rate}/kg (${r.how})` : 'Set wire size to pick the rate';
   f.wireMm.placeholder = isFinite(parseMm(f.wireItem.value)) ? String(parseMm(f.wireItem.value)) : 'auto';
 }
+function applyWireGuess(p, alias) {
+  const f = pForm.elements, hint = $('#wireHint');
+  hint.hidden = true;
+  if (f.wireItem.value.trim()) return;
+  const g = p ? wireGuess(p, alias) : null;
+  if (!g) return;
+  f.wireItem.value = g.item; if (g.mm) f.wireMm.value = g.mm;
+  hint.textContent = '✦ ' + g.why; hint.hidden = false;
+}
+function renderFormSuggest(alias) {
+  const box = $('#pSug');
+  const sg = alias ? suggest(alias, 5) : [];
+  box.innerHTML = sg.map(({ p }) => `<button type="button" data-pick="${h(p.id)}">${h(p.product)}</button>`).join('');
+  box.hidden = !sg.length;
+}
+function fillFrom(ex) {
+  const f = pForm.elements, al = pForm.dataset.alias;
+  f.id.value = ex.id; f.product.value = ex.product; f.aliases.value = addAlias(ex.aliases, al);
+  f.wireItem.value = ex.wireItem; f.wireMm.value = ex.wireMm; f.wireRate.value = ex.wireRate; f.godown.value = ex.godown || S().godown;
+  pForm.dataset.prevWire = ex.wireItem || '';
+  $('#pTitle').textContent = al ? `Link “${al}”` : 'Edit product';
+  $('#pDel').hidden = !!al;
+  applyWireGuess(ex, al);
+  updateRateHint();
+}
 function openProduct(p, alias, mmGuess) {
   const f = pForm.elements;
   pForm.reset();
   pForm.dataset.alias = alias || '';
-  f.id.value = p ? p.id : '';
-  f.product.value = p ? p.product : '';
-  f.aliases.value = p ? p.aliases : (alias || '');
-  f.wireItem.value = p ? p.wireItem : '';
-  f.wireMm.value = p ? p.wireMm : '';
-  f.wireRate.value = p ? p.wireRate : '';
-  f.godown.value = p ? p.godown : S().godown;
-  $('#pTitle').textContent = p ? 'Edit product' : alias ? 'Link “' + alias + '”' : 'Add product';
+  pForm.dataset.prevWire = p ? (p.wireItem || '') : '';
+  $('#wireHint').hidden = true;
+  renderFormSuggest(alias);
   $('#pHint').hidden = !!p;
-  $('#pDel').hidden = !p;
-  if (!p && mmGuess !== '' && mmGuess != null) f.wireMm.value = String(mmGuess);
+  if (p) fillFrom(p);
+  else {
+    f.id.value = ''; f.aliases.value = alias || ''; f.godown.value = S().godown;
+    $('#pTitle').textContent = alias ? `Link “${alias}”` : 'Add product';
+    $('#pDel').hidden = true;
+    if (mmGuess !== '' && mmGuess != null) f.wireMm.value = String(mmGuess);
+  }
   updateRateHint();
   $('#pDlg').showModal();
   setTimeout(() => (p ? f.wireItem : f.product).focus(), 50);
 }
+$('#pSug').addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if (!b) return; const ex = st.m.products.find(x => x.id === b.dataset.pick); if (ex) { pForm.elements.wireItem.value = ''; fillFrom(ex); } });
 pForm.elements.product.addEventListener('change', () => {
-  // picking an existing product while linking → merge the alias into it
-  const f = pForm.elements; if (f.id.value) return;
+  // picking an existing product while linking → add the name to it
+  const f = pForm.elements;
   const ex = st.m.products.find(p => p.product.toLowerCase() === f.product.value.trim().toLowerCase());
-  if (!ex) return;
-  const al = pForm.dataset.alias;
-  const list = String(ex.aliases || '').split(';').map(s => s.trim()).filter(Boolean);
-  if (al && !list.some(x => norm(x) === norm(al))) list.push(al);
-  f.id.value = ex.id; f.aliases.value = list.join('; ');
-  f.wireItem.value = ex.wireItem; f.wireMm.value = ex.wireMm; f.wireRate.value = ex.wireRate; f.godown.value = ex.godown;
-  $('#pTitle').textContent = 'Add name to “' + ex.product + '”';
-  updateRateHint();
+  if (!ex || ex.id === f.id.value) return;
+  if (f.id.value && !pForm.dataset.alias) return;   // editing a product: don't jump to another
+  f.wireItem.value = '';
+  fillFrom(ex);
 });
 ['input', 'change'].forEach(ev => { pForm.elements.wireItem.addEventListener(ev, updateRateHint); pForm.elements.wireMm.addEventListener(ev, updateRateHint); });
+pForm.elements.wireItem.addEventListener('input', () => { $('#wireHint').hidden = true; const mm = parseMm(pForm.elements.wireItem.value); if (isFinite(mm)) pForm.elements.wireMm.value = String(mm); updateRateHint(); });
 pForm.addEventListener('submit', async e => {
   e.preventDefault();
   const f = pForm.elements;
@@ -1083,15 +1223,48 @@ pForm.addEventListener('submit', async e => {
     aliases: f.aliases.value.split(';').map(s => s.trim()).filter(Boolean).join('; '),
     wireItem: f.wireItem.value.trim(), wireMm: f.wireMm.value.trim(), wireRate: f.wireRate.value.trim(), godown: f.godown.value.trim(), notes: '',
   };
-  if (!p.wireMm) { const mm = parseMm(p.wireItem); if (isFinite(mm)) p.wireMm = String(mm); else if (f.wireMm.placeholder && f.wireMm.placeholder !== 'auto') p.wireMm = f.wireMm.placeholder; }
-  // stop a name being linked to two products
-  const mine = p.aliases.split(';').map(norm).filter(Boolean);
-  const clash = st.m.products.find(x => x.id !== p.id && String(x.aliases || '').split(';').map(norm).some(a => mine.includes(a)));
-  if (clash) return toast(`A name here is already linked to “${clash.product}”`, true);
+  if (!p.wireMm) { const mm = parseMm(p.wireItem); if (isFinite(mm)) p.wireMm = String(mm); }
+  if (aliasClash(p.id, p.aliases)) return;
+  const prevWire = pForm.dataset.prevWire || '';
   const btn = $('#pSave'); btn.disabled = true;
-  try { await saveProduct(p); $('#pDlg').close(); toast('Saved ' + p.product); renderAll(); }
-  catch (err) {} finally { btn.disabled = false; }
+  try {
+    const saved = await saveProduct(p);
+    $('#pDlg').close(); toast('Saved ' + p.product); renderAll();
+    if (saved.wireItem && saved.wireItem !== prevWire) offerWireFill(saved);
+  } catch (err) {} finally { btn.disabled = false; }
 });
+
+/* ═══════════ fill the same wire into similar products (with confirmation) ═══════════ */
+function offerWireFill(src) {
+  const fs = feat(src.product), k = famKey(fs);
+  const same = [], other = [];
+  st.m.products.forEach(x => {
+    if (x.id === src.id || x.wireItem === src.wireItem) return;
+    const fx = feat(x.product);
+    if (famKey(fx) === k) same.push(x);
+    else if (fx.type === fs.type && isFinite(fs.wire) && Math.abs(fx.wire - fs.wire) < 1e-6) other.push(x);
+  });
+  if (!same.length && !other.length) return;
+  const sort = a => a.sort((x, y) => x.product.localeCompare(y.product));
+  const row = (x, on) => `<li><label><input type="checkbox" value="${h(x.id)}" ${on ? 'checked' : ''}><span>${h(x.product)}</span><small>${x.wireItem ? 'now: ' + h(x.wireItem) : 'no wire yet'}</small></label></li>`;
+  const grp = (title, list, def, g) => list.length ? `<div class="fgrp"><span>${title} (${list.length})</span><button type="button" data-all="${g}">Select all</button></div><ul class="fl" data-g="${g}">${sort(list).map(x => row(x, def(x))).join('')}</ul>` : '';
+  $('#fTitle').textContent = `Use ${src.wireItem} for similar products?`;
+  $('#fBody').innerHTML = `<p class="muted" style="margin:0 0 4px;font-size:13px">You set <b style="color:var(--ink)">${h(src.wireItem)}</b> for <b style="color:var(--ink)">${h(src.product)}</b>. Tick the products that use the same wire.</p>`
+    + grp('Same mesh and wire size, other widths/lengths', same, x => !x.wireItem, 'same')
+    + grp(`Other products with ${fs.wire}mm in the name`, other, () => false, 'other');
+  $('#fBody').onclick = e => { const b = e.target.closest('[data-all]'); if (!b) return; const boxes = $$(`[data-g="${b.dataset.all}"] input`); const on = boxes.some(c => !c.checked); boxes.forEach(c => c.checked = on); b.textContent = on ? 'Clear' : 'Select all'; updFill(); };
+  $('#fBody').onchange = updFill;
+  function updFill() { const n = $$('#fBody input:checked').length; $('#fGo').disabled = !n; $('#fGo').textContent = n ? `Fill wire for ${n} product${n > 1 ? 's' : ''}` : 'Fill wire'; }
+  updFill();
+  $('#fGo').onclick = async () => {
+    const ids = $$('#fBody input:checked').map(c => c.value);
+    const list = ids.map(id => Object.assign({}, st.m.products.find(x => x.id === id), { wireItem: src.wireItem, wireMm: src.wireMm }));
+    $('#fGo').disabled = true; $('#fGo').textContent = 'Saving…';
+    try { await saveProducts(list); $('#fDlg').close(); toast(`${src.wireItem} set for ${list.length} more product${list.length > 1 ? 's' : ''}`); renderAll(); }
+    catch (err) { updFill(); }
+  };
+  setTimeout(() => $('#fDlg').showModal(), 180);
+}
 $('#pDel').onclick = async () => {
   const id = pForm.elements.id.value; if (!id) return;
   const p = st.m.products.find(x => x.id === id);
@@ -1102,19 +1275,25 @@ $('#pDel').onclick = async () => {
 /* ═══════════ masters dialog ═══════════ */
 function renderProducts() {
   const q = norm($('#pSearch').value);
-  const s = S();
-  const rows = st.m.products.filter(p => !q || norm([p.product, p.aliases, p.wireItem, p.godown].join(' ')).includes(q))
+  const s = S(), ps = st.m.products;
+  const fl = renderProducts.flt || 'all';
+  const nNo = ps.filter(p => !p.wireItem).length, nLk = ps.filter(p => String(p.aliases || '').trim()).length;
+  $('#pFlt').innerHTML = [['all', `All (${ps.length})`], ['nowire', `Wire not set (${nNo})`], ['linked', `Has production names (${nLk})`]]
+    .map(([k, t]) => `<button type="button" data-f="${k}" aria-pressed="${fl === k}">${t}</button>`).join('');
+  const rows = ps.filter(p => fl === 'all' || (fl === 'nowire' ? !p.wireItem : String(p.aliases || '').trim()))
+    .filter(p => !q || norm([p.product, p.aliases, p.wireItem, p.godown].join(' ')).includes(q))
     .sort((a, b) => a.product.localeCompare(b.product));
   $('#pRows').innerHTML = rows.length ? rows.map(p => {
     const r = wireRateFor(p, s);
     return `<tr class="r" data-pid="${h(p.id)}"><td><b style="font-weight:500">${h(p.product)}</b></td>
       <td><div class="al">${String(p.aliases || '').split(';').map(a => a.trim()).filter(Boolean).map(a => `<code>${h(a)}</code>`).join('') || '<span class="muted">—</span>'}</div></td>
-      <td>${h(p.wireItem || '—')}</td><td class="num" style="text-align:right">${isFinite(r.rate) ? r.rate : '?'}${r.how === 'override' ? '*' : ''}</td><td>${h(p.godown || s.godown)}</td></tr>`;
+      <td>${p.wireItem ? h(p.wireItem) : '<span class="chip warn">not set</span>'}</td><td class="num" style="text-align:right">${isFinite(r.rate) ? r.rate : '?'}${r.how === 'override' ? '*' : ''}</td><td>${h(p.godown || s.godown)}</td></tr>`;
   }).join('') : `<tr><td colspan="5" class="muted" style="padding:24px 10px;text-align:center">${st.m.products.length ? 'Nothing matches.' : 'No products yet. Upload a production file and link the names, or add one here.'}</td></tr>`;
   $('#mSrc').textContent = (cloudOn() ? 'Google Sheet' : 'This PC only') + ` · ${st.m.products.length} products`;
 }
 $('#pRows').addEventListener('click', e => { const r = e.target.closest('[data-pid]'); if (r) openProduct(st.m.products.find(p => p.id === r.dataset.pid)); });
 $('#pSearch').addEventListener('input', renderProducts);
+$('#pFlt').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { renderProducts.flt = b.dataset.f; renderProducts(); } });
 $('#pAdd').onclick = () => openProduct(null);
 
 function costRow(c) { return `<div class="cost-row"><input class="in" data-c="ledger" value="${h(c.ledger)}" placeholder="Ledger name"><input class="in num" data-c="pct" value="${h(c.pct)}" inputmode="decimal" placeholder="%"><button type="button" class="btn icon ghost" data-crm title="Remove">${icon('trash')}</button></div>`; }
@@ -1190,7 +1369,7 @@ $('#lForm').addEventListener('submit', async e => {
     absorb(j); $('#lDlg').close(); refreshBadge(); renderAll(); if ($('#mDlg').open) showTab('sheet');
     toast('Welcome, ' + j.user);
   } catch (err) {
-    st.cloud.mode = LS.get('mode', ''); $('#lErr').hidden = false; $('#lErr').textContent = err.message || 'Could not connect';
+    st.cloud.mode = LS.get('mode', ''); $('#lErr').hidden = false; $('#lErr').textContent = /failed to fetch|networkerror|load failed/i.test(err.message || '') ? 'Could not reach the Google Sheet. In Apps Script, the web app must be deployed with “Who has access: Anyone”, then Deploy → Manage deployments → New version.' : (err.message || 'Could not connect');
   } finally { b.disabled = false; b.textContent = 'Log in'; }
 });
 $('#lLocal').onclick = () => { st.cloud.mode = 'local'; LS.set('mode', 'local'); $('#lDlg').close(); refreshBadge(); renderAll(); };
