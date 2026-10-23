@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDN to Tally - XML Converter</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2316191c'/%3E%3Cg stroke='%23c9ced2' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M10 7v18M16 7v18M22 7v18M7 10h18M7 16h18M7 22h18'/%3E%3C/g%3E%3Ccircle cx='22' cy='10' r='3' fill='%23f06a28'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --surface-2:#f7f8f5; --ink:#16191c; --ink-2:#3a4047; --muted:#6c727a;
+  --line:#e3e5e0; --line-2:#d2d6cf; --accent:#e2591b; --accent-ink:#b8440f; --accent-soft:#fdeee5;
+  --ok:#2c7a4b; --ok-soft:#e6f3eb; --warn:#a85d06; --warn-soft:#fcf1df; --bad:#b42318; --bad-soft:#fdecea;
+  --logo-bg:#16191c; --logo-wire:#c9ced2; --btn:#16191c; --btn-ink:#ffffff;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.06);
+  --shadow-lg:0 24px 48px -16px rgba(16,24,40,.25);
+  --r:14px; --r-sm:9px;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1113; --surface:#15191c; --surface-2:#1a1f23; --ink:#e9ebec; --ink-2:#c4c9cd; --muted:#8a9299;
+    --line:#242a2f; --line-2:#31383e; --accent:#ff7a3d; --accent-ink:#ff9a68; --accent-soft:rgba(255,122,61,.12);
+    --ok:#4cc38a; --ok-soft:rgba(76,195,138,.12); --warn:#f2a93b; --warn-soft:rgba(242,169,59,.12); --bad:#ff6b5e; --bad-soft:rgba(255,107,94,.12);
+    --logo-bg:#e9ebec; --logo-wire:#4b545b; --btn:#e9ebec; --btn-ink:#0e1113;
+    --shadow:0 1px 2px rgba(0,0,0,.3); --shadow-lg:0 24px 48px -16px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1113; --surface:#15191c; --surface-2:#1a1f23; --ink:#e9ebec; --ink-2:#c4c9cd; --muted:#8a9299;
+  --line:#242a2f; --line-2:#31383e; --accent:#ff7a3d; --accent-ink:#ff9a68; --accent-soft:rgba(255,122,61,.12);
+  --ok:#4cc38a; --ok-soft:rgba(76,195,138,.12); --warn:#f2a93b; --warn-soft:rgba(242,169,59,.12); --bad:#ff6b5e; --bad-soft:rgba(255,107,94,.12);
+  --logo-bg:#e9ebec; --logo-wire:#4b545b; --btn:#e9ebec; --btn-ink:#0e1113;
+  --shadow:0 1px 2px rgba(0,0,0,.3); --shadow-lg:0 24px 48px -16px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh;transition:background .25s,color .25s}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+[hidden]{display:none!important}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* header */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{width:32px;height:32px;flex:none}
+.brand b{font-size:16px;letter-spacing:-.02em;display:block;line-height:1.1}
+.brand small{color:var(--muted);font-size:12px;display:block;white-space:nowrap}
+.spacer{flex:1}
+.badge{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap;transition:border-color .15s}
+.badge:hover{border-color:var(--line-2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.badge[data-s="ok"] .dot{background:var(--ok)}
+.badge[data-s="sync"] .dot{background:var(--accent);animation:pulse 1s ease-in-out infinite}
+.badge[data-s="off"] .dot{background:var(--warn)}
+.badge[data-s="err"] .dot{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+.seg{display:inline-flex;padding:3px;border-radius:99px;background:var(--surface);border:1px solid var(--line);gap:2px}
+.seg button{border:0;background:transparent;width:28px;height:26px;border-radius:99px;display:grid;place-items:center;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--surface-2);color:var(--ink);box-shadow:var(--shadow)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 14px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-weight:500;font-size:13.5px;white-space:nowrap;transition:background .15s,border-color .15s,transform .08s,opacity .15s}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.btn.pri:hover{opacity:.9}
+.btn.acc{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.sm{height:30px;padding:0 10px;font-size:12.5px}
+.btn.icon{width:32px;padding:0;height:32px}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+main{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+
+/* drop */
+.drop{position:relative;border:1.5px dashed var(--line-2);border-radius:20px;padding:64px 24px;text-align:center;cursor:pointer;overflow:hidden;background:var(--surface);transition:border-color .2s,background .2s,transform .2s}
+.drop::before{content:"";position:absolute;inset:0;opacity:.55;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:28px 28px;mask-image:radial-gradient(ellipse at center,#000 10%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,#000 10%,transparent 70%)}
+.drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface))}
+.drop.over{transform:scale(1.005)}
+.drop>*{position:relative}
+.drop .ico{width:56px;height:56px;border-radius:16px;margin:0 auto 18px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.drop .ico svg{width:26px;height:26px}
+.drop h2{margin:0 0 6px;font-size:20px;letter-spacing:-.02em}
+.drop p{margin:0;color:var(--muted)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.step b{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:4px}
+.step b span{width:22px;height:22px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font:600 11.5px var(--mono)}
+.step p{margin:0;color:var(--muted);font-size:13px}
+
+/* day toolbar */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin-bottom:18px}
+.bar h1{margin:0;font-size:22px;letter-spacing:-.025em;display:flex;align-items:center;gap:10px}
+.file{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.datefld{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 4px 0 12px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface)}
+.datefld label{font-size:12px;color:var(--muted)}
+.datefld input{border:0;background:transparent;width:104px;font:500 14px var(--mono);outline:none;padding:0}
+.datefld.bad{border-color:var(--bad)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:18px}
+.stat{background:var(--surface);padding:14px 16px}
+.stat span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.stat b{font:600 19px var(--mono);letter-spacing:-.02em}
+.stat b small{font-size:12px;color:var(--muted);font-weight:500;margin-left:3px}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px;box-shadow:var(--shadow)}
+.panel.warn{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+.panel-h{display:flex;align-items:center;gap:10px;padding:14px 16px}
+.panel-h .pi{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--warn-soft);color:var(--warn);flex:none}
+.panel-h b{font-size:14px}
+.panel-h p{margin:0;font-size:12.5px;color:var(--muted)}
+.um{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--line)}
+.um code{font:500 13px var(--mono);background:var(--surface-2);border:1px solid var(--line);padding:3px 8px;border-radius:6px;overflow-wrap:anywhere}
+.um .w{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+
+.sec-h{display:flex;align-items:baseline;gap:10px;margin:26px 2px 10px}
+.sec-h h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+.sec-h span{font-size:12.5px;color:var(--muted)}
+.sec-h hr{flex:1;border:0;border-top:1px solid var(--line);margin:0 0 0 6px;align-self:center}
+
+/* voucher card */
+.vc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s;animation:rise .35s cubic-bezier(.2,.7,.3,1) both}
+.vc:hover{border-color:var(--line-2)}
+.vc.open{box-shadow:var(--shadow-lg);border-color:var(--line-2)}
+.vc.blocked{border-color:color-mix(in srgb,var(--bad) 35%,var(--line))}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}}
+.vc-h{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) auto;gap:16px;align-items:center;padding:14px 14px 14px 18px;cursor:pointer}
+.vc-h>*{min-width:0}
+.vc-t h3{margin:0;font-size:15px;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vc-t .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.chip.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.chip.bad{background:var(--bad-soft);border-color:transparent;color:var(--bad)}
+.chip.acc{background:var(--accent-soft);border-color:transparent;color:var(--accent-ink)}
+.chip svg.i{width:12px;height:12px}
+.figs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fig span{display:block;font-size:11.5px;color:var(--muted)}
+.fig b{display:block;font:500 13.5px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-a{display:flex;align-items:center;gap:6px}
+.chev{transition:transform .25s}
+.vc.open .chev{transform:rotate(180deg)}
+.vc-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.2,.7,.3,1)}
+.vc.open .vc-b{grid-template-rows:1fr}
+.vc-b>div{overflow:hidden}
+.vc-in{border-top:1px solid var(--line);padding:16px 18px 18px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.tb{width:100%;border-collapse:collapse;font-size:13px}
+.tb caption{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding-bottom:6px;font-weight:600}
+.tb th{font-weight:500;color:var(--muted);font-size:11.5px;text-align:right;padding:5px 0;border-bottom:1px solid var(--line)}
+.tb th:first-child,.tb td:first-child{text-align:left}
+.tb td{padding:6px 0;text-align:right;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12.5px}
+.tb td:first-child{font-family:var(--sans);font-size:13px}
+.tb td+td,.tb th+th{padding-left:10px}
+.tb tr.tot td{font-weight:600;border-bottom:0}
+.tb tr.sub td{color:var(--muted)}
+.box{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px}
+.adj{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.adj label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.src{font-size:12.5px;color:var(--ink-2);margin:0;padding:0;list-style:none}
+.src li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.src li:last-child{border:0}
+.src li span:last-child{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+.err-line{display:flex;gap:8px;align-items:center;color:var(--bad);font-size:13px;margin:0 0 10px}
+
+/* inputs */
+.in{width:100%;height:36px;border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--surface);padding:0 10px;outline:none;transition:border-color .15s,box-shadow .15s}
+textarea.in{height:auto;min-height:70px;padding:8px 10px;resize:vertical}
+.in:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.in.num{font-family:var(--mono)}
+.fld{display:block;margin-bottom:12px}
+.fld>span{display:block;font-size:12px;color:var(--ink-2);margin-bottom:4px;font-weight:500}
+.fld>small{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 12px}
+
+details.ign{margin-top:22px;color:var(--muted);font-size:13px}
+details.ign summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px}
+details.ign summary::-webkit-details-marker{display:none}
+details.ign ul{margin:10px 0 0;padding:0;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+details.ign li{padding:8px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+details.ign li:first-child{border:0}
+
+/* dialogs */
+dialog{border:0;padding:0;background:transparent;color:var(--ink);max-width:calc(100vw - 32px);max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(10,12,14,.45);backdrop-filter:blur(3px)}
+dialog[open]{animation:pop .22s cubic-bezier(.2,.7,.3,1)}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.985)}}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;max-height:calc(100vh - 40px)}
+.dlg-h{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.dlg-h h3{margin:0;font-size:16px;letter-spacing:-.01em;flex:1}
+.dlg-b{padding:18px;overflow:auto}
+.dlg-f{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line)}
+.tabs{display:flex;gap:4px;padding:0 18px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:12px 4px;margin-right:14px;color:var(--muted);cursor:pointer;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
+.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+.ptable{width:100%;border-collapse:collapse;font-size:13px}
+.ptable th{text-align:left;font-weight:500;color:var(--muted);font-size:11.5px;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:-18px;background:var(--surface)}
+.ptable td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.ptable tr.r{cursor:pointer;transition:background .12s}
+.ptable tr.r:hover{background:var(--surface-2)}
+.al{display:flex;flex-wrap:wrap;gap:4px}
+.al code{font:12px var(--mono);background:var(--surface-2);border:1px solid var(--line);padding:1px 6px;border-radius:5px}
+.cost-row{display:grid;grid-template-columns:1fr 90px 32px;gap:8px;margin-bottom:8px}
+pre.xml{margin:0;font:12px/1.55 var(--mono);white-space:pre;overflow:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;max-height:60vh;color:var(--ink-2)}
+pre.xml .t{color:var(--accent-ink)}
+.login-card{width:400px}
+.login-card .lg{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:16px}
+.login-card .lg svg{width:48px;height:48px;margin-bottom:10px}
+.login-card .lg h3{margin:0;font-size:18px}
+.login-card .lg p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.msg{font-size:13px;padding:9px 12px;border-radius:var(--r-sm);margin-bottom:12px}
+.msg.bad{background:var(--bad-soft);color:var(--bad)}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px;font-size:13px}
+
+/* toasts */
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:100}
+.toast{display:flex;align-items:center;gap:9px;background:var(--btn);color:var(--btn-ink);padding:11px 14px;border-radius:12px;box-shadow:var(--shadow-lg);font-size:13.5px;animation:tin .25s cubic-bezier(.2,.7,.3,1);max-width:380px}
+.toast.bad{background:var(--bad);color:#fff}
+.toast.out{opacity:0;transform:translateY(6px);transition:.25s}
+@keyframes tin{from{opacity:0;transform:translateY(10px)}}
+
+@media (max-width:900px){
+  .vc-h{grid-template-columns:1fr auto}
+  .figs{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(2,1fr)}
+  .vc-in{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .steps{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .top-in{padding:10px 16px}
+  main{padding:20px 16px 60px}
+  .brand small,.badge .lbl,#mastersBtn .lbl{display:none}
+  .grid2,.grid3,.adj{grid-template-columns:1fr}
+  .chev{display:none}
+  .vc-h{padding:12px 12px 12px 14px;gap:10px}
+  .bar .btn{flex:1}
+  .drop{padding:44px 16px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="logo" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="var(--logo-bg)"/><g stroke="var(--logo-wire)" stroke-width="1.8" stroke-linecap="round"><path d="M10 7v18M16 7v18M22 7v18M7 10h18M7 16h18M7 22h18"/></g><circle cx="22" cy="10" r="3" fill="var(--accent)"/><circle cx="22" cy="10" r="5.2" fill="none" stroke="var(--accent)" stroke-opacity=".35" stroke-width="1"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-auto" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="i-zip" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M10 6h1M10 9h1M10 12h1M10 15h1v3h-1z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg><use href="#logo"/></svg>
+      <div><b>PDN to Tally</b><small>XML Converter · production → manufacturing journal</small></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="badge" id="syncBadge" data-s="idle" title="Sheet connection"><span class="dot"></span><span class="lbl" id="syncLbl">Local</span></button>
+    <button class="btn sm" id="mastersBtn"><svg class="i"><use href="#i-grid"/></svg><span class="lbl">Masters</span></button>
+    <div class="seg" role="group" aria-label="Theme">
+      <button data-theme-set="auto" title="Auto"><svg class="i"><use href="#i-auto"/></svg></button>
+      <button data-theme-set="light" title="Light"><svg class="i"><use href="#i-sun"/></svg></button>
+      <button data-theme-set="dark" title="Dark"><svg class="i"><use href="#i-moon"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="emptyView">
+    <label class="drop" id="drop">
+      <input type="file" id="fileIn" accept=".xlsx,.xls,.xlsm" hidden>
+      <div class="ico"><svg class="i"><use href="#i-up"/></svg></div>
+      <h2>Drop today's production file</h2>
+      <p>or click to choose the .xlsx — one manufacturing journal is built per product</p>
+    </label>
+    <div class="steps">
+      <div class="step"><b><span>1</span>Upload</b><p>Rows are read from every section: BB1, BB2, barbed wire, chainlink.</p></div>
+      <div class="step"><b><span>2</span>Check</b><p>Names are matched to Tally products from the sheet. Link any new ones once.</p></div>
+      <div class="step"><b><span>3</span>Export</b><p>Download each XML, or all of them, and import in Tally.</p></div>
+    </div>
+  </section>
+
+  <section id="dayView" hidden>
+    <div class="bar">
+      <h1>Production</h1>
+      <div class="datefld" id="dateFld"><label for="dateIn">Voucher date</label><input id="dateIn" class="num" placeholder="DD-MM-YYYY" maxlength="10" autocomplete="off"></div>
+      <span class="file" id="fileName"><svg class="i"><use href="#i-file"/></svg><span></span></span>
+      <div class="spacer"></div>
+      <button class="btn" id="replaceBtn"><svg class="i"><use href="#i-up"/></svg>New file</button>
+      <button class="btn" id="combinedBtn" title="All vouchers in a single XML file"><svg class="i"><use href="#i-file"/></svg>One XML</button>
+      <button class="btn pri" id="zipBtn"><svg class="i"><use href="#i-zip"/></svg>Download all</button>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div id="unmapped"></div>
+    <div id="vouchers"></div>
+    <details class="ign" id="ignored"></details>
+  </section>
+</main>
+
+<!-- product form -->
+<dialog id="pDlg"><form class="dlg" style="width:560px" id="pForm" method="dialog">
+  <div class="dlg-h"><h3 id="pTitle">Link product</h3><button type="button" class="btn icon ghost" data-close><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="dlg-b">
+    <input type="hidden" name="id">
+    <label class="fld"><span>Tally product (stock item)</span><input class="in" name="product" list="dlProducts" required autocomplete="off" placeholder="e.g. Gi Sheet Weldmesh 3mm"><small id="pHint">Pick an existing product to add this name to it, or type a new one.</small></label>
+    <label class="fld"><span>Names in production file</span><textarea class="in" name="aliases" rows="2" placeholder="40x40x2.9mmx4x12; 40x40x2.9mmx5x12"></textarea><small>Separate with a semicolon ( ; )</small></label>
+    <div class="grid3">
+      <label class="fld" style="grid-column:span 2"><span>Wire used (stock item)</span><input class="in" name="wireItem" list="dlWires" required autocomplete="off" placeholder="e.g. GI WIRE 3MM"></label>
+      <label class="fld"><span>Wire size mm</span><input class="in num" name="wireMm" inputmode="decimal" placeholder="auto"></label>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span>Godown</span><input class="in" name="godown" list="dlGodowns" autocomplete="off"></label>
+      <label class="fld"><span>Wire rate override</span><input class="in num" name="wireRate" inputmode="decimal" placeholder="auto"><small id="rateHint"></small></label>
+    </div>
+  </div>
+  <div class="dlg-f"><button type="button" class="btn danger ghost" id="pDel" style="margin-right:auto"><svg class="i"><use href="#i-trash"/></svg>Delete</button><button type="button" class="btn" data-close>Cancel</button><button class="btn pri" id="pSave" value="save">Save</button></div>
+</form></dialog>
+
+<!-- masters -->
+<dialog id="mDlg"><div class="dlg" style="width:980px;height:min(720px,calc(100vh - 40px))">
+  <div class="dlg-h"><h3>Masters</h3><span class="muted" id="mSrc" style="font-size:12.5px"></span><button type="button" class="btn icon ghost" data-close><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="prod" aria-selected="true">Products</button>
+    <button role="tab" data-tab="set">Costs &amp; settings</button>
+    <button role="tab" data-tab="sheet">Sheet</button>
+  </div>
+  <div class="dlg-b" style="flex:1">
+    <div data-pane="prod">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="position:relative;flex:1"><svg class="i" style="position:absolute;left:10px;top:10px;color:var(--muted)"><use href="#i-search"/></svg><input class="in" id="pSearch" placeholder="Search products, names, wire…" style="padding-left:32px"></div>
+        <button class="btn pri" id="pAdd"><svg class="i"><use href="#i-plus"/></svg>Add</button>
+      </div>
+      <table class="ptable"><thead><tr><th>Tally product</th><th>Names in production file</th><th>Wire</th><th style="text-align:right">Rate</th><th>Godown</th></tr></thead><tbody id="pRows"></tbody></table>
+    </div>
+    <div data-pane="set" hidden>
+      <form id="sForm">
+        <div class="grid2" style="gap:0 24px">
+          <div>
+            <h4 style="margin:0 0 10px;font-size:13px">Additional cost ledgers <span class="muted" style="font-weight:400">— % of component value</span></h4>
+            <div id="costRows"></div>
+            <button type="button" class="btn sm" id="costAdd"><svg class="i"><use href="#i-plus"/></svg>Add ledger</button>
+            <h4 style="margin:22px 0 10px;font-size:13px">Wire rate</h4>
+            <div class="grid3" id="setRate"></div>
+          </div>
+          <div>
+            <h4 style="margin:0 0 10px;font-size:13px">Voucher</h4>
+            <div id="setVch"></div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div data-pane="sheet" hidden>
+      <div id="sheetPane"></div>
+    </div>
+  </div>
+  <div class="dlg-f" id="sFoot" hidden><button class="btn" data-close>Close</button><button class="btn pri" id="sSave">Save settings</button></div>
+</div></dialog>
+
+<!-- xml preview -->
+<dialog id="xDlg"><div class="dlg" style="width:900px">
+  <div class="dlg-h"><h3 id="xTitle">XML</h3><button class="btn sm" id="xCopy"><svg class="i"><use href="#i-copy"/></svg>Copy</button><button class="btn sm pri" id="xDl"><svg class="i"><use href="#i-down"/></svg>Download</button><button type="button" class="btn icon ghost" data-close><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="dlg-b"><pre class="xml" id="xPre"></pre></div>
+</div></dialog>
+
+<!-- login -->
+<dialog id="lDlg"><form class="dlg login-card" id="lForm" method="dialog">
+  <div class="dlg-b">
+    <div class="lg"><svg><use href="#logo"/></svg><h3>Log in to PDN to Tally</h3><p>Products and settings load from the Google Sheet</p></div>
+    <div class="msg bad" id="lErr" hidden></div>
+    <label class="fld" id="lUrlF"><span>Apps Script web app URL</span><input class="in" name="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></label>
+    <label class="fld"><span>User name</span><input class="in" name="user" autocomplete="username" required></label>
+    <label class="fld"><span>Password</span><input class="in" name="pass" type="password" autocomplete="current-password" required></label>
+    <button class="btn pri" style="width:100%;height:40px" id="lBtn">Log in</button>
+    <div style="text-align:center;margin-top:8px"><button type="button" class="linkbtn" id="lLocal">Continue without the sheet</button></div>
+  </div>
+</form></dialog>
+
+<datalist id="dlProducts"></datalist><datalist id="dlWires"></datalist><datalist id="dlGodowns"></datalist>
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ═══════════ CONFIG ═══════════ */
+// Apps Script web-app link (Deploy → Manage deployments keeps it the same on updates)
+const CLOUD_URL = 'https://script.google.com/a/macros/jainwireindia.com/s/AKfycbzsT8OFqmnP4FFYnNXahnzmtELXTCGGlrX0bXzNo7emuJJqMrAduFl2ZcxpaFz7yziD/exec';
+const APP_VERSION = '1.0.0';
+
+/*CORE-START*/
+const SETTING_DEFS = [
+  { k: 'company',      label: 'Company',          def: 'BEST BOND STEELS PVT LTD - 2021-23 (from-Apr-21) - (from 1-Apr-22)', grp: 'vch', note: 'Blank = whichever company is open in Tally' },
+  { k: 'vchType',      label: 'Voucher Type',     def: 'MANUFACTURING JOURNAL', grp: 'vch' },
+  { k: 'godown',       label: 'Default Godown',   def: 'A-MAIN LOCATION', grp: 'vch' },
+  { k: 'scrapItem',    label: 'Scrap Item',       def: 'GI Wire Scrap', grp: 'vch' },
+  { k: 'scrapCostPct', label: 'Scrap Cost %',     def: 2.5, num: true, grp: 'vch', note: 'Cost allocated to scrap' },
+  { k: 'scrapQtyPct',  label: 'Scrap Qty %',      def: 0.5, num: true, grp: 'vch', note: '% of production kg, rounded up' },
+  { k: 'unit',         label: 'Unit',             def: 'KG', grp: 'vch' },
+  { k: 'batch',        label: 'Batch Name',       def: 'Primary Batch', grp: 'vch' },
+  { k: 'thinMax',      label: 'Thin Wire Max mm', def: 2, num: true, grp: 'rate', short: 'Up to mm' },
+  { k: 'thinRate',     label: 'Thin Wire Rate',   def: 73, num: true, grp: 'rate', short: 'Rate (≤)' },
+  { k: 'thickRate',    label: 'Thick Wire Rate',  def: 70, num: true, grp: 'rate', short: 'Rate (>)' },
+];
+const DEFAULT_COSTS = [
+  { ledger: 'PRODUCTION COST (1.5rs Per Kg)', pct: 2.5 },
+  { ledger: 'Electricity Charge (1rs Per Kg)', pct: 2 },
+  { ledger: 'Transpotation ( 5rs Per Kg)', pct: 9 },
+  { ledger: 'Labour Cost ( 1rs Per Kg )', pct: 2 },
+  { ledger: 'Machine Charge(0.25 Per Kg)', pct: 0.5 },
+];
+function defaultSettings() { const o = {}; SETTING_DEFS.forEach(d => o[d.k] = d.def); return o; }
+
+/* --- numbers: money kept in paise (integers) so rounding matches Tally --- */
+const rHalf = x => Math.round(x + 1e-9);
+const r2 = x => Math.round(x * 100 + 1e-7) / 100;
+const pTxt = p => { const s = p < 0 ? '-' : ''; p = Math.abs(p); return s + Math.floor(p / 100) + '.' + String(p % 100).padStart(2, '0'); };
+const f2 = x => (Math.round(x * 100) / 100).toFixed(2);
+const bp = pct => Math.round(Number(pct) * 100);          // 2.5% → 250
+const parseMm = s => { const m = String(s || '').match(/(\d+(?:\.\d+)?)\s*mm/i); return m ? Number(m[1]) : NaN; };
+
+function wireRateFor(prod, S) {
+  if (prod && String(prod.wireRate).trim() !== '' && !isNaN(Number(prod.wireRate))) return { rate: Number(prod.wireRate), how: 'override' };
+  const mm = prod && String(prod.wireMm).trim() !== '' ? Number(prod.wireMm) : parseMm(prod && prod.wireItem);
+  if (!isFinite(mm)) return { rate: NaN, how: 'unknown' };
+  return mm <= Number(S.thinMax) + 1e-9 ? { rate: Number(S.thinRate), how: '≤ ' + S.thinMax + 'mm', mm } : { rate: Number(S.thickRate), how: '> ' + S.thinMax + 'mm', mm };
+}
+
+/* v: { qty, rate, scrapQty }  → all amounts */
+function compute(v, S, costs) {
+  const qty = r2(v.qty), rate = Number(v.rate);
+  const scrapBp = bp(S.scrapCostPct);
+  const compP = Math.round(qty * rate * 100 + 1e-7);
+  const primaryRaw = compP * (10000 - scrapBp) / 10000;     // paise, unrounded
+  const scrapRaw = compP * scrapBp / 10000;
+  const primaryP = rHalf(primaryRaw), scrapP = rHalf(scrapRaw);
+  const lines = costs.filter(c => c.ledger).map(c => ({ ledger: c.ledger, pct: Number(c.pct) || 0, p: rHalf(compP * bp(c.pct) / 10000) }));
+  const addlP = lines.reduce((a, c) => a + c.p, 0);
+  const effP = compP + addlP;
+  const allocP = rHalf(effP * (10000 - scrapBp) / 10000);
+  return {
+    qty, rate, scrapQty: v.scrapQty, compP, primaryP, scrapP, lines, addlP, effP, allocP,
+    primaryRate: r2(primaryRaw / 100 / qty),
+    scrapRate: v.scrapQty > 0 ? r2(scrapRaw / 100 / v.scrapQty) : 0,
+    effRate: r2(allocP / 100 / qty),
+  };
+}
+function scrapQtyFor(qty, S) { const x = qty * Number(S.scrapQtyPct) / 100; return x > 0 ? Math.ceil(Math.round(x * 1e6) / 1e6) : 0; }
+
+/* --- XML (mirrors a TallyPrime Manufacturing Journal export) --- */
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const NA = '&#4; Not Applicable';
+const tag = (t, v, ind) => `${ind}<${t}>${v}</${t}>`;
+const FLAGS_A = 'DIFFACTUALQTY ISMSTFROMSYNC ISDELETED ISSECURITYONWHENENTERED ASORIGINAL AUDITED ISCOMMONPARTY'.split(' ');
+const FLAGS_B = ('USEFOREXCISE ISFORJOBWORKIN ALLOWCONSUMPTION USEFORINTEREST USEFORGAINLOSS USEFORGODOWNTRANSFER USEFORCOMPOUND USEFORSERVICETAX ' +
+  'ISREVERSECHARGEAPPLICABLE ISSYSTEM ISFETCHEDONLY ISGSTOVERRIDDEN ISCANCELLED ISONHOLD ISSUMMARY ISECOMMERCESUPPLY ISBOENOTAPPLICABLE ' +
+  'ISGSTSECSEVENAPPLICABLE IGNOREEINVVALIDATION CMPGSTISOTHTERRITORYASSESSEE PARTYGSTISOTHTERRITORYASSESSEE IRNJSONEXPORTED IRNCANCELLED ' +
+  'IGNOREGSTCONFLICTINMIG ISOPBALTRANSACTION IGNOREGSTFORMATVALIDATION ISELIGIBLEFORITC IGNOREGSTOPTIONALUNCERTAIN ISGSTREFUND ' +
+  'ISEWAYBILLEXCLUDED ISBUYERPEPPOLREGISTERED ISVATOVERRIDDEN ISEINVOVERRIDDEN UPDATESUMMARYVALUES ISEWAYBILLAPPLICABLE ISDELETEDRETAINED ' +
+  'ISNULL ISEXCISEVOUCHER EXCISETAXOVERRIDE USEFORTAXUNITTRANSFER ISEXER1NOPOVERWRITE ISEXF2NOPOVERWRITE ISEXER3NOPOVERWRITE ' +
+  'IGNOREPOSVALIDATION EXCISEOPENING USEFORFINALPRODUCTION ISTDSOVERRIDDEN ISTCSOVERRIDDEN ISTDSTCSCASHVCH INCLUDEADVPYMTVCH ' +
+  'ISSUBWORKSCONTRACT IGNOREORIGVCHDATE ISVATPAIDATCUSTOMS ISDECLAREDTOCUSTOMS VATADVANCEPAYMENT VATADVPAY ISCSTDELCAREDGOODSSALES ' +
+  'ISVATRESTAXINV ISSERVICETAXOVERRIDDEN ISISDVOUCHER ISEXCISEOVERRIDDEN ISEXCISESUPPLYVCH GSTNOTEXPORTED IGNOREGSTINVALIDATION ' +
+  'OVRDNEWAYBILLAPPLICABILITY ISVATPRINCIPALACCOUNT VCHSTATUSISVCHNUMUSED VCHGSTSTATUSISINCLUDED VCHGSTSTATUSISUNCERTAIN ' +
+  'VCHGSTSTATUSISEXCLUDED VCHGSTSTATUSISAPPLICABLE VCHGSTSTATUSISGSTR2BRECONCILED VCHGSTSTATUSISGSTR2BONLYINPORTAL ' +
+  'VCHGSTSTATUSISGSTR2BONLYINBOOKS VCHGSTSTATUSISGSTR2BMISMATCH VCHGSTSTATUSISGSTR2BINDIFFPERIOD VCHGSTSTATUSISRETEFFDATEOVERRDN ' +
+  'VCHGSTSTATUSISOVERRDN VCHGSTSTATUSISSTATINDIFFDATE VCHGSTSTATUSISRETINDIFFDATE VCHGSTSTATUSMAINSECTIONEXCLUDED ' +
+  'VCHGSTSTATUSISBRANCHTRANSFEROUT VCHGSTSTATUSISSYSTEMSUMMARY VCHSTATUSISUNREGISTEREDRCM VCHSTATUSISOPTIONAL VCHSTATUSISCANCELLED ' +
+  'VCHSTATUSISDELETED VCHSTATUSISOPENINGBALANCE VCHSTATUSISFETCHEDONLY VCHGSTSTATUSISOPTIONALUNCERTAIN VCHSTATUSISREACCEPTFORHSNDONE ' +
+  'VCHSTATUSISREACCEPHSNSIXONEDONE PAYMENTLINKHASMULTIREF ISSHIPPINGWITHINSTATE ISOVERSEASTOURISTTRANS ISDESIGNATEDZONEPARTY HASCASHFLOW ' +
+  'ISPOSTDATED USETRACKINGNUMBER ISINVOICE MFGJOURNAL HASDISCOUNTS ASPAYSLIP ISCOSTCENTRE ISSTXNONREALIZEDVCH ISEXCISEMANUFACTURERON ' +
+  'ISBLANKCHEQUE ISVOID ORDERLINESTATUS VATISAGNSTCANCSALES VATISPURCEXEMPTED ISVATRESTAXINVOICE VATISASSESABLECALCVCH').split(' ');
+const FLAGS_C = 'ISDELIVERYSAMEASCONSIGNEE ISDISPATCHSAMEASCONSIGNOR ISDELETEDVCHRETAINED VCHONLYADDLINFOUPDATED CHANGEVCHMODE UAEEINVISBILLPREPAIDAMTOVRDN RESETIRNQRCODE ISVCHEXCHANGED'.split(' ');
+const ITEM_FLAGS = ['ISRCMAPPLICABLE', 'ISGSTASSESSABLEVALUEOVERRIDDEN', 'STRDISGSTAPPLICABLE', 'CONTENTNEGISPOS'];
+
+function qtyTxt(q, unit) { return ' ' + f2(q) + ' ' + unit; }
+
+function invEntry(kind, o, S) {
+  // kind: 'in' (primary), 'scrap', 'out' (consumption)
+  const I = '       ', B = '        ';
+  const pos = kind === 'out' ? 'No' : 'Yes';
+  const q = qtyTxt(o.qty, S.unit);
+  const x = [];
+  x.push(`      <INVENTORYENTRIES${kind === 'out' ? 'OUT' : 'IN'}.LIST>`);
+  x.push(tag('STOCKITEMNAME', esc(o.item), I));
+  x.push(tag('GSTOVRDNISTAXONMRPAPPLICABLE', NA, I));
+  x.push(tag('ISDEEMEDPOSITIVE', pos, I));
+  ITEM_FLAGS.forEach(f => x.push(tag(f, 'No', I)));
+  x.push(tag('ISLASTDEEMEDPOSITIVE', pos, I));
+  ['ISAUTONEGATE', 'ISCUSTOMSCLEARANCE', 'ISTRACKCOMPONENT', 'ISTRACKPRODUCTION', 'ISPRIMARYITEM'].forEach(f => x.push(tag(f, 'No', I)));
+  x.push(tag('ISSCRAP', kind === 'scrap' ? 'Yes' : 'No', I));
+  x.push(tag('RATE', f2(o.rate) + '/' + S.unit, I));
+  if (kind === 'scrap') x.push(tag('ADDLCOSTPERC', ' ' + f2(S.scrapCostPct), I));
+  x.push(tag('AMOUNT', pTxt(o.p), I));
+  x.push(tag('ACTUALQTY', q, I));
+  x.push(tag('BILLEDQTY', q, I));
+  x.push(`${I}<BATCHALLOCATIONS.LIST>`);
+  x.push(tag('GODOWNNAME', esc(o.godown), B));
+  x.push(tag('BATCHNAME', esc(S.batch), B));
+  if (kind !== 'in') x.push(tag('DESTINATIONGODOWNNAME', esc(o.godown), B));
+  x.push(tag('INDENTNO', NA, B), tag('ORDERNO', NA, B), tag('TRACKINGNUMBER', NA, B));
+  x.push(tag('DYNAMICCSTISCLEARED', 'No', B));
+  x.push(tag('AMOUNT', pTxt(o.p), B));
+  x.push(tag('ACTUALQTY', q, B));
+  x.push(tag('BILLEDQTY', q, B));
+  x.push(`${I}</BATCHALLOCATIONS.LIST>`);
+  x.push(`      </INVENTORYENTRIES${kind === 'out' ? 'OUT' : 'IN'}.LIST>`);
+  return x.join('\n');
+}
+
+function voucherXml(v, c, S, ymd) {
+  const I = '      ', L = '       ';
+  const g = esc(v.godown), vt = esc(S.vchType);
+  const x = [];
+  x.push(`    <TALLYMESSAGE xmlns:UDF="TallyUDF">`);
+  x.push(`     <VOUCHER VCHTYPE="${vt}" ACTION="Create" OBJVIEW="Multi Consumption Voucher View">`);
+  x.push(tag('DATE', ymd, I), tag('VCHSTATUSDATE', ymd, I));
+  x.push(tag('VOUCHERTYPENAME', vt, I));
+  x.push(tag('GSTREGISTRATION', NA, I));
+  x.push(tag('NUMBERINGSTYLE', 'Auto Renumber', I));
+  x.push(tag('CSTFORMISSUETYPE', NA, I), tag('CSTFORMRECVTYPE', NA, I));
+  x.push(tag('FBTPAYMENTTYPE', 'Default', I));
+  x.push(tag('PERSISTEDVIEW', 'Multi Consumption Voucher View', I));
+  x.push(tag('VCHSTATUSTAXADJUSTMENT', 'Default', I));
+  x.push(tag('VCHSTATUSVOUCHERTYPE', vt, I));
+  x.push(tag('VCHGSTCLASS', NA, I));
+  x.push(tag('DESTINATIONGODOWN', g, I), tag('VOUCHERDESTINATIONGODOWN', g, I), tag('VOUCHERSOURCEGODOWN', g, I));
+  FLAGS_A.forEach(f => x.push(tag(f, 'No', I)));
+  x.push(tag('FORJOBCOSTING', 'Yes', I));
+  x.push(tag('ISOPTIONAL', 'No', I));
+  x.push(tag('EFFECTIVEDATE', ymd, I));
+  FLAGS_B.forEach(f => x.push(tag(f, 'No', I)));
+  x.push(tag('ISVATDUTYPAID', 'Yes', I));
+  FLAGS_C.forEach(f => x.push(tag(f, 'No', I)));
+  if (v.narration) x.push(tag('NARRATION', esc(v.narration), I));
+  x.push(tag('VOUCHERNUMBERSERIES', 'Default', I));
+  c.lines.forEach(l => {
+    x.push(`${I}<LEDGERENTRIES.LIST>`);
+    x.push(`${L}<RATEOFINVOICETAX.LIST TYPE="Number">`, tag('RATEOFINVOICETAX', ' ' + (Number.isInteger(l.pct) ? l.pct : f2(l.pct)), L + ' '), `${L}</RATEOFINVOICETAX.LIST>`);
+    x.push(tag('ADDLALLOCTYPE', 'Appropriate by Value', L));
+    x.push(tag('LEDGERNAME', esc(l.ledger), L));
+    x.push(tag('GSTCLASS', NA, L));
+    x.push(tag('GSTOVRDNISTAXONMRPAPPLICABLE', NA, L));
+    x.push(tag('ISDEEMEDPOSITIVE', 'Yes', L));
+    x.push(tag('LEDGERFROMITEM', 'No', L), tag('ISPARTYLEDGER', 'No', L));
+    x.push(tag('ISLASTDEEMEDPOSITIVE', 'Yes', L));
+    x.push(tag('ISCAPVATNOTCLAIMED', 'No', L));
+    x.push(tag('AMOUNT', pTxt(-l.p), L));
+    x.push(`${I}</LEDGERENTRIES.LIST>`);
+  });
+  x.push(invEntry('in', { item: v.product, qty: c.qty, rate: c.primaryRate, p: -c.primaryP, godown: v.godown }, S));
+  if (c.scrapQty > 0) x.push(invEntry('scrap', { item: S.scrapItem, qty: c.scrapQty, rate: c.scrapRate, p: -c.scrapP, godown: v.godown }, S));
+  x.push(invEntry('out', { item: v.wireItem, qty: c.qty, rate: c.rate, p: c.compP, godown: v.godown }, S));
+  x.push(`     </VOUCHER>`);
+  x.push(`    </TALLYMESSAGE>`);
+  return x.join('\n');
+}
+
+function envelope(bodies, S) {
+  const co = String(S.company || '').trim();
+  return ['<ENVELOPE>', ' <HEADER>', '  <TALLYREQUEST>Import Data</TALLYREQUEST>', ' </HEADER>', ' <BODY>', '  <IMPORTDATA>', '   <REQUESTDESC>',
+    '    <REPORTNAME>Vouchers</REPORTNAME>',
+    co ? `    <STATICVARIABLES>\n     <SVCURRENTCOMPANY>${esc(co)}</SVCURRENTCOMPANY>\n    </STATICVARIABLES>` : null,
+    '   </REQUESTDESC>', '   <REQUESTDATA>', ...bodies, '   </REQUESTDATA>', '  </IMPORTDATA>', ' </BODY>', '</ENVELOPE>', '']
+    .filter(l => l !== null).join('\n');
+}
+/*CORE-END*/
+
+/* ═══════════ helpers ═══════════ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const h = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const icon = (n, cls = '') => `<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
+const inr = (p) => '₹' + (p / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const kg = (q) => Number(q).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').replace(/\s*x\s*/g, 'x').replace(/\s+mm/g, 'mm').trim();
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem('pdn2tally.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('pdn2tally.' + k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem('pdn2tally.' + k); } catch (e) {} },
+};
+const pad = n => String(n).padStart(2, '0');
+const dmy = d => `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+function dmyValid(s) {
+  const m = String(s).trim().match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/); if (!m) return null;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]);
+  return d.getMonth() === +m[2] - 1 && d.getDate() === +m[1] ? `${pad(m[1])}-${pad(m[2])}-${m[3]}` : null;
+}
+const ymdOf = s => { const [d, m, y] = s.split('-'); return y + m + d; };
+function toast(msg, bad) {
+  const t = document.createElement('div'); t.className = 'toast' + (bad ? ' bad' : '');
+  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${h(msg)}</span>`;
+  $('#toasts').appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, bad ? 5200 : 2800);
+}
+function download(name, text, type = 'application/xml') {
+  const blob = text instanceof Blob ? text : new Blob([text], { type });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const safeName = s => String(s).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim();
+
+/* ═══════════ theme ═══════════ */
+function setTheme(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  $$('[data-theme-set]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)));
+  LS.set('theme', t);
+}
+setTheme(LS.get('theme', 'auto'));
+$$('[data-theme-set]').forEach(b => b.onclick = () => setTheme(b.dataset.themeSet));
+
+/* ═══════════ state & store ═══════════ */
+const st = {
+  m: LS.get('masters', null) || { products: [], settings: defaultSettings(), costs: DEFAULT_COSTS.slice(), log: [] },
+  cloud: { url: CLOUD_URL || LS.get('url', ''), user: LS.get('user', ''), pass: LS.get('pass', ''), mode: LS.get('mode', ''), name: LS.get('name', '') },
+  day: null, ov: {}, open: new Set(),
+};
+st.m.settings = Object.assign(defaultSettings(), st.m.settings || {});
+const S = () => st.m.settings;
+const cloudOn = () => st.cloud.mode === 'cloud' && st.cloud.url && st.cloud.user;
+
+function setBadge(s, txt) { const b = $('#syncBadge'); b.dataset.s = s; $('#syncLbl').textContent = txt; }
+function refreshBadge() {
+  if (!cloudOn()) return setBadge('idle', 'Local only');
+  setBadge('ok', 'Sheet · ' + (st.cloud.name || st.cloud.user));
+}
+
+async function api(action, payload = {}) {
+  const r = await fetch(st.cloud.url, { method: 'POST', body: JSON.stringify(Object.assign({ action, user: st.cloud.user, pass: st.cloud.pass }, payload)) });
+  if (!r.ok) throw new Error('Sheet replied ' + r.status);
+  const j = await r.json();
+  if (!j.ok) { const e = new Error(j.error || 'Sheet error'); e.auth = !!j.auth; throw e; }
+  return j;
+}
+function absorb(j) {
+  const s = defaultSettings();
+  SETTING_DEFS.forEach(d => { if (j.settings && j.settings[d.label] !== undefined && j.settings[d.label] !== '') s[d.k] = d.num ? Number(j.settings[d.label]) : String(j.settings[d.label]); });
+  st.m = { products: j.products || [], settings: s, costs: (j.costs && j.costs.length) ? j.costs : DEFAULT_COSTS.slice(), log: j.log || [] };
+  LS.set('masters', st.m);
+}
+async function loadMasters(quiet) {
+  if (!cloudOn()) { refreshBadge(); return; }
+  setBadge('sync', 'Loading…');
+  try {
+    const j = await api('load');
+    absorb(j);
+    st.cloud.name = j.user; LS.set('name', j.user);
+    refreshBadge();
+    if (!quiet) toast('Masters loaded from the sheet');
+  } catch (e) {
+    if (e.auth) { setBadge('err', 'Login needed'); openLogin(e.message); }
+    else { setBadge('off', 'Offline · cached'); if (!quiet) toast('Could not reach the sheet — using the copy on this PC', true); }
+  }
+  renderAll();
+}
+async function withSync(fn) {
+  setBadge('sync', 'Saving…');
+  try { const r = await fn(); refreshBadge(); return r; }
+  catch (e) { setBadge('err', 'Sync error'); toast(e.message, true); if (e.auth) openLogin(e.message); throw e; }
+}
+async function saveProduct(p) {
+  if (cloudOn()) {
+    const j = await withSync(() => api('saveProduct', { product: p }));
+    p = j.product;
+  } else if (!p.id) {
+    const max = st.m.products.reduce((m, x) => Math.max(m, Number(String(x.id).replace(/\D/g, '')) || 0), 0);
+    p.id = 'P' + String(max + 1).padStart(4, '0');
+  }
+  const i = st.m.products.findIndex(x => x.id === p.id);
+  if (i >= 0) st.m.products[i] = p; else st.m.products.push(p);
+  LS.set('masters', st.m);
+  return p;
+}
+async function deleteProduct(id) {
+  if (cloudOn()) await withSync(() => api('deleteProduct', { id }));
+  st.m.products = st.m.products.filter(x => x.id !== id);
+  LS.set('masters', st.m);
+}
+async function saveSettings(s, costs) {
+  if (cloudOn()) {
+    const labels = {}; SETTING_DEFS.forEach(d => labels[d.label] = s[d.k]);
+    const j = await withSync(() => api('saveSettings', { settings: labels, costs }));
+    absorb(j);
+  } else { st.m.settings = s; st.m.costs = costs; LS.set('masters', st.m); }
+}
+async function logExport(entries) {
+  let rows;
+  if (cloudOn()) {
+    try { rows = (await api('logExport', { entries })).log; refreshBadge(); }
+    catch (e) { toast('Downloaded, but the export log could not be saved: ' + e.message, true); return; }
+  } else {
+    const at = new Date(); const t = dmy(at) + ' ' + pad(at.getHours()) + ':' + pad(at.getMinutes());
+    rows = entries.map(e => Object.assign({ at: t, user: 'this PC' }, e));
+  }
+  st.m.log = (st.m.log || []).concat(rows);
+  LS.set('masters', st.m);
+}
+
+/* ═══════════ production file parsing ═══════════ */
+const titleCase = s => s.toLowerCase().replace(/\s+/g, ' ').trim().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\b(Bb\d|M\d)\b/g, x => x.toUpperCase());
+const numv = v => { if (typeof v === 'number') return v; if (v == null || v === '') return NaN; const n = Number(String(v).replace(/,/g, '').trim()); return n; };
+
+function parseWorkbook(buf, fileName) {
+  const wb = XLSX.read(buf, { type: 'array', cellNF: true, cellDates: false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: true });
+
+  // date: first date-formatted cell near the top, else from the file name
+  let date = null;
+  for (let r = 0; r < 6 && !date; r++) for (let c = 0; c < 6 && !date; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c })];
+    if (!cell) continue;
+    if (cell.t === 'n' && cell.z && XLSX.SSF.is_date(cell.z)) { const d = XLSX.SSF.parse_date_code(cell.v); date = `${pad(d.d)}-${pad(d.m)}-${d.y}`; }
+    else if (cell.t === 's') date = dmyValid(cell.v);
+  }
+  if (!date) { const m = fileName.match(/(\d{1,2})[-_.](\d{1,2})[-_.](\d{2,4})/); if (m) date = dmyValid(`${m[1]}-${m[2]}-${m[3].length === 2 ? '20' + m[3] : m[3]}`); }
+
+  const lines = [], skipped = [];
+  const base = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']).s.r : 0;
+  let section = '', team = '', shift = '';
+  rows.forEach((r, i) => {
+    const a = r[0] == null ? '' : String(r[0]).trim();
+    const b = r[1], c = r[2];
+    if (!a) return;
+    if (typeof b === 'string' && /^nos$/i.test(b.trim())) { section = titleCase(a.replace(/production/i, '')); team = ''; shift = ''; return; }
+    if (/^team\b/i.test(a)) { team = titleCase(a.replace(/production/i, '')); return; }
+    if (/^(day|night)$/i.test(a)) { shift = titleCase(a); team = ''; return; }
+    if (/^total\b/i.test(a) || /\btotal production\b/i.test(a)) return;
+    const nos = numv(b), per = numv(c);
+    if (isFinite(nos) && isFinite(per) && nos > 0 && per > 0) {
+      lines.push({ alias: a, nos, perKg: per, kg: r2(nos * per), section, team, shift, row: base + i + 1 });
+    } else if (/no\s*prod|^off$/i.test(a) || (isFinite(nos) && nos === 0)) {
+      skipped.push({ alias: a, why: 'No production', section, team, row: base + i + 1 });
+    } else if (b == null && c == null && /production$/i.test(a)) {
+      section = titleCase(a.replace(/production/i, '')); team = ''; shift = '';
+    } else {
+      skipped.push({ alias: a, why: 'No qty / kg', section, team, row: base + i + 1 });
+    }
+  });
+  return { fileName, date: date || dmy(new Date()), lines, skipped };
+}
+
+/* ═══════════ build vouchers from the day ═══════════ */
+function aliasIndex() {
+  const ix = new Map();
+  st.m.products.forEach(p => {
+    String(p.aliases || '').split(';').map(norm).filter(Boolean).forEach(a => ix.set(a, p));
+    if (!ix.has(norm(p.product))) ix.set(norm(p.product), p);
+  });
+  return ix;
+}
+function buildDay() {
+  const d = st.day; if (!d) return null;
+  const ix = aliasIndex();
+  const groups = new Map(), unmapped = new Map();
+  d.lines.forEach(l => {
+    const p = ix.get(norm(l.alias));
+    if (!p) {
+      const k = norm(l.alias);
+      if (!unmapped.has(k)) unmapped.set(k, { alias: l.alias, kg: 0, lines: [] });
+      const u = unmapped.get(k); u.kg = r2(u.kg + l.kg); u.lines.push(l);
+      return;
+    }
+    if (!groups.has(p.id)) groups.set(p.id, { prod: p, lines: [] });
+    groups.get(p.id).lines.push(l);
+  });
+  const s = S();
+  const vouchers = [...groups.values()].map(g => {
+    const p = g.prod, ov = st.ov[p.id] || {};
+    const baseQty = r2(g.lines.reduce((a, l) => a + l.kg, 0));
+    const qty = ov.qty != null ? ov.qty : baseQty;
+    const wr = wireRateFor(p, s);
+    const rate = ov.rate != null ? ov.rate : wr.rate;
+    const scrapQty = ov.scrap != null ? ov.scrap : scrapQtyFor(qty, s);
+    const v = { id: p.id, product: p.product, wireItem: p.wireItem, godown: p.godown || s.godown, section: g.lines[0].section, lines: g.lines, baseQty, qty, rate, rateHow: ov.rate != null ? 'edited' : wr.how, scrapQty, ov };
+    v.problems = [];
+    if (!v.wireItem) v.problems.push('No wire item set for this product');
+    if (!isFinite(rate) || rate <= 0) v.problems.push('Wire rate unknown — set the wire size or a rate');
+    if (!(qty > 0)) v.problems.push('Quantity is zero');
+    v.calc = v.problems.length ? null : compute(v, s, st.m.costs);
+    v.logged = (st.m.log || []).filter(e => e.date === d.date && e.product === v.product && (e.godown || '') === v.godown);
+    return v;
+  });
+  return { vouchers, unmapped: [...unmapped.values()] };
+}
+const fileFor = v => safeName(`MFG ${st.day.date} ${v.product}`) + '.xml';
+const xmlFor = v => envelope([voucherXml(v, v.calc, S(), ymdOf(st.day.date))], S());
+
+/* ═══════════ rendering ═══════════ */
+let built = null;
+function renderAll() {
+  renderLists();
+  if (!st.day) { $('#emptyView').hidden = false; $('#dayView').hidden = true; return; }
+  $('#emptyView').hidden = true; $('#dayView').hidden = false;
+  built = buildDay();
+  renderStats(); renderUnmapped(); renderVouchers(); renderIgnored();
+  if ($('#mDlg').open) renderProducts();
+}
+function renderStats() {
+  const vs = built.vouchers, ok = vs.filter(v => v.calc);
+  const totKg = st.day.lines.reduce((a, l) => a + l.kg, 0);
+  const comp = ok.reduce((a, v) => a + v.calc.compP, 0);
+  $('#stats').innerHTML = `
+    <div class="stat"><span>Rows read</span><b>${st.day.lines.length}<small>from ${st.day.skipped.length + st.day.lines.length} with names</small></b></div>
+    <div class="stat"><span>Vouchers ready</span><b>${ok.length}<small>of ${vs.length}${built.unmapped.length ? ` · ${built.unmapped.length} to link` : ''}</small></b></div>
+    <div class="stat"><span>Total production</span><b>${kg(totKg)}<small>kg</small></b></div>
+    <div class="stat"><span>Wire consumed value</span><b>${inr(comp)}</b></div>`;
+  $('#zipBtn').disabled = $('#combinedBtn').disabled = !ok.length;
+  $('#zipBtn').innerHTML = icon('zip') + `Download all${ok.length ? ` (${ok.length})` : ''}`;
+}
+function renderUnmapped() {
+  const u = built.unmapped, el = $('#unmapped');
+  if (!u.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="panel warn">
+    <div class="panel-h"><div class="pi">${icon('link')}</div><div><b>${u.length} name${u.length > 1 ? 's' : ''} not linked to a Tally product</b><p>Link each once — it is saved to the sheet and remembered for every future file.</p></div></div>
+    ${u.map((x, i) => `<div class="um"><div class="w"><code>${h(x.alias)}</code><span class="chip">${h([x.lines[0].section, x.lines[0].team].filter(Boolean).join(' · '))}</span><span class="num muted">${kg(x.kg)} kg</span></div><button class="btn sm pri" data-link="${i}">${icon('link')}Link</button></div>`).join('')}
+  </div>`;
+}
+function srcLabel(l) { return [l.section, l.shift, l.team].filter(Boolean).join(' · '); }
+function renderVouchers() {
+  const vs = built.vouchers, el = $('#vouchers');
+  if (!vs.length) { el.innerHTML = built.unmapped.length ? '' : `<p class="muted">No production rows found in this file.</p>`; return; }
+  const bySec = new Map();
+  vs.forEach(v => { if (!bySec.has(v.section)) bySec.set(v.section, []); bySec.get(v.section).push(v); });
+  let html = '', n = 0;
+  bySec.forEach((list, sec) => {
+    const t = list.reduce((a, v) => a + (v.qty || 0), 0);
+    html += `<div class="sec-h"><h2>${h(sec || 'Production')}</h2><span class="num">${list.length} voucher${list.length > 1 ? 's' : ''} · ${kg(t)} kg</span><hr></div>`;
+    list.forEach(v => { html += cardHtml(v, n++); });
+  });
+  el.innerHTML = html;
+}
+function cardHtml(v, n) {
+  const c = v.calc, open = st.open.has(v.id), s = S();
+  const status = v.problems.length ? `<span class="chip bad">${icon('alert')}Needs fix</span>`
+    : v.logged.length ? `<span class="chip ok" title="${h(v.logged.map(e => e.at + ' · ' + e.user).join('\n'))}">${icon('check')}Exported</span>` : '';
+  const edited = Object.keys(v.ov).length ? `<span class="chip acc">Edited</span>` : '';
+  const head = `<div class="vc-h" data-tog="${h(v.id)}">
+    <div class="vc-t"><h3 title="${h(v.product)}">${h(v.product)}</h3><div class="meta"><span class="chip">${h(v.godown)}</span>${status}${edited}</div></div>
+    <div class="figs">
+      <div class="fig"><span>Production</span><b>${kg(v.qty)} kg</b></div>
+      <div class="fig"><span>Wire @ ${isFinite(v.rate) ? '₹' + v.rate : '?'}</span><b title="${h(v.wireItem)}">${h(v.wireItem || '—')}</b></div>
+      <div class="fig"><span>Scrap</span><b>${v.scrapQty} kg</b></div>
+      <div class="fig"><span>Wire value</span><b>${c ? inr(c.compP) : '—'}</b></div>
+    </div>
+    <div class="vc-a">
+      <button class="btn icon ghost" data-prev="${h(v.id)}" title="Preview XML" ${c ? '' : 'disabled'}>${icon('eye')}</button>
+      <button class="btn sm" data-dl="${h(v.id)}" ${c ? '' : 'disabled'}>${icon('down')}XML</button>
+      <svg class="i chev"><use href="#i-chev"/></svg>
+    </div></div>`;
+  const problems = v.problems.length ? v.problems.map(p => `<p class="err-line">${icon('alert')}${h(p)} <button class="btn sm" data-edit="${h(v.id)}">Edit product</button></p>`).join('') : '';
+  const tables = c ? `
+    <div>
+      <table class="tb"><caption>Components (consumption)</caption>
+        <tr><th>Item</th><th>Qty</th><th>Rate</th><th>Amount</th></tr>
+        <tr><td>${h(v.wireItem)}</td><td>${kg(c.qty)}</td><td>${f2(c.rate)}</td><td>${inr(c.compP)}</td></tr>
+      </table>
+      <table class="tb" style="margin-top:14px"><caption>Production</caption>
+        <tr><th>Item</th><th>%</th><th>Qty</th><th>Amount</th></tr>
+        <tr><td>${h(v.product)}</td><td>${f2(100 - s.scrapCostPct)}</td><td>${kg(c.qty)}</td><td>${inr(c.primaryP)}</td></tr>
+        <tr><td>${h(s.scrapItem)} <span class="muted">(scrap)</span></td><td>${f2(s.scrapCostPct)}</td><td>${c.scrapQty}</td><td>${inr(c.scrapP)}</td></tr>
+      </table>
+    </div>
+    <div>
+      <table class="tb"><caption>Additional cost</caption>
+        <tr><th>Ledger</th><th>%</th><th>Amount</th></tr>
+        ${c.lines.map(l => `<tr><td>${h(l.ledger)}</td><td>${f2(l.pct)}</td><td>${inr(l.p)}</td></tr>`).join('')}
+        <tr class="sub"><td>Total addl. cost</td><td></td><td>${inr(c.addlP)}</td></tr>
+        <tr class="sub"><td>Effective cost</td><td></td><td>${inr(c.effP)}</td></tr>
+        <tr class="tot"><td>Allocation to ${h(v.product)}</td><td></td><td>${inr(c.allocP)}</td></tr>
+        <tr class="sub"><td>Effective rate of primary item</td><td></td><td>₹${f2(c.effRate)}/kg</td></tr>
+      </table>
+    </div>` : '';
+  const adj = `<div class="box" style="${c ? '' : 'grid-column:1/-1'}">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12.5px">Rows from the file</b>${Object.keys(v.ov).length ? `<button class="btn sm ghost" data-reset="${h(v.id)}">${icon('refresh')}Reset edits</button>` : ''}</div>
+      <ul class="src">${v.lines.map(l => `<li><span>${h(l.alias)} <span class="muted">· ${h(srcLabel(l))}</span></span><span>${kg(l.nos)} × ${kg(l.perKg)} = ${kg(l.kg)} kg</span></li>`).join('')}</ul>
+      <div class="adj">
+        <label><span style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px">Production kg</span><input class="in num" data-ov="qty" data-id="${h(v.id)}" value="${v.qty}" inputmode="decimal"></label>
+        <label><span style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px">Wire rate <span title="How the rate was chosen">(${h(v.rateHow)})</span></span><input class="in num" data-ov="rate" data-id="${h(v.id)}" value="${isFinite(v.rate) ? v.rate : ''}" inputmode="decimal"></label>
+        <label><span style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px">Scrap kg</span><input class="in num" data-ov="scrap" data-id="${h(v.id)}" value="${v.scrapQty}" inputmode="decimal"></label>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-edit="${h(v.id)}">${icon('grid')}Edit product master</button>${v.logged.length ? `<span class="muted" style="font-size:12px;align-self:center">Exported ${h(v.logged.map(e => e.at + ' by ' + e.user).join(', '))}</span>` : ''}</div>
+    </div>`;
+  return `<article class="vc${open ? ' open' : ''}${v.problems.length ? ' blocked' : ''}" style="animation-delay:${Math.min(n, 12) * 25}ms" data-card="${h(v.id)}">${head}
+    <div class="vc-b"><div><div class="vc-in">${problems ? `<div style="grid-column:1/-1">${problems}</div>` : ''}${tables}${adj}</div></div></div></article>`;
+}
+function renderIgnored() {
+  const sk = st.day.skipped, el = $('#ignored');
+  if (!sk.length) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<summary>${icon('chev')}${sk.length} row${sk.length > 1 ? 's' : ''} skipped</summary><ul>${sk.map(s => `<li><span>${h(s.alias)} <span class="muted">· ${h([s.section, s.team].filter(Boolean).join(' · '))}</span></span><span>${h(s.why)} · row ${s.row}</span></li>`).join('')}</ul>`;
+}
+function renderLists() {
+  const ps = st.m.products, s = S();
+  const uniq = a => [...new Set(a.filter(Boolean))].sort((x, y) => x.localeCompare(y));
+  $('#dlProducts').innerHTML = uniq(ps.map(p => p.product)).map(x => `<option value="${h(x)}">`).join('');
+  $('#dlWires').innerHTML = uniq(ps.map(p => p.wireItem).concat(['GI WIRE 3MM', 'Gi Wire 2.5mm', 'Gi Wire 2mm', 'GI WIRE 1.4MM'])).map(x => `<option value="${h(x)}">`).join('');
+  $('#dlGodowns').innerHTML = uniq(ps.map(p => p.godown).concat([s.godown, 'A-MAIN LOCATION', 'BEST BOND -2-'])).map(x => `<option value="${h(x)}">`).join('');
+}
+
+/* ═══════════ file handling ═══════════ */
+async function openFile(file) {
+  if (!file) return;
+  if (typeof XLSX === 'undefined') return toast('Excel reader did not load — check the internet connection', true);
+  try {
+    st.day = parseWorkbook(await file.arrayBuffer(), file.name);
+    st.ov = {}; st.open = new Set();
+    $('#dateIn').value = st.day.date; $('#dateFld').classList.remove('bad');
+    $('#fileName span').textContent = file.name;
+    renderAll();
+    if (!st.day.lines.length) toast('No production rows found in this file', true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) { console.error(e); toast('Could not read this file: ' + e.message, true); }
+}
+const drop = $('#drop'), fileIn = $('#fileIn');
+fileIn.onchange = () => { openFile(fileIn.files[0]); fileIn.value = ''; };
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) openFile(f); });
+$('#replaceBtn').onclick = () => fileIn.click();
+
+$('#dateIn').addEventListener('change', e => {
+  const v = dmyValid(e.target.value);
+  $('#dateFld').classList.toggle('bad', !v);
+  if (!v) return toast('Use DD-MM-YYYY for the voucher date', true);
+  e.target.value = v; st.day.date = v; renderAll();
+});
+
+/* ═══════════ voucher interactions ═══════════ */
+$('#vouchers').addEventListener('click', e => {
+  const t = e.target.closest('button,[data-tog]'); if (!t) return;
+  if (t.dataset.dl) { e.stopPropagation(); return dlOne(t.dataset.dl); }
+  if (t.dataset.prev) { e.stopPropagation(); return preview(t.dataset.prev); }
+  if (t.dataset.edit) { const p = st.m.products.find(x => x.id === t.dataset.edit); return openProduct(p); }
+  if (t.dataset.reset) { delete st.ov[t.dataset.reset]; return renderAll(); }
+  if (t.dataset.tog) {
+    const id = t.dataset.tog, card = t.closest('.vc');
+    st.open.has(id) ? st.open.delete(id) : st.open.add(id);
+    card.classList.toggle('open');
+  }
+});
+$('#vouchers').addEventListener('change', e => {
+  const i = e.target.closest('[data-ov]'); if (!i) return;
+  const id = i.dataset.id, k = i.dataset.ov, raw = i.value.trim();
+  const v = built.vouchers.find(x => x.id === id);
+  const n = Number(raw);
+  st.ov[id] = st.ov[id] || {};
+  if (raw === '' || !isFinite(n) || n < 0) delete st.ov[id][k];
+  else {
+    const base = k === 'qty' ? v.baseQty : k === 'rate' ? wireRateFor(st.m.products.find(p => p.id === id), S()).rate : null;
+    if (k === 'scrap') st.ov[id][k] = Math.round(n * 100) / 100;
+    else if (n === base) delete st.ov[id][k]; else st.ov[id][k] = n;
+  }
+  if (!Object.keys(st.ov[id]).length) delete st.ov[id];
+  renderAll();
+});
+$('#unmapped').addEventListener('click', e => {
+  const b = e.target.closest('[data-link]'); if (!b) return;
+  const u = built.unmapped[+b.dataset.link];
+  const mm = parseMm(u.alias);
+  openProduct(null, u.alias, isFinite(mm) ? mm : '');
+});
+
+function preview(id) {
+  const v = built.vouchers.find(x => x.id === id); if (!v || !v.calc) return;
+  const xml = xmlFor(v);
+  $('#xTitle').textContent = fileFor(v);
+  $('#xPre').innerHTML = h(xml).replace(/(&lt;\/?)([A-Z.:_]+)/g, '$1<span class="t">$2</span>');
+  $('#xCopy').onclick = async () => { try { await navigator.clipboard.writeText(xml); toast('XML copied'); } catch (e) { toast('Copy blocked by the browser', true); } };
+  $('#xDl').onclick = () => dlOne(id);
+  $('#xDlg').showModal();
+}
+function logEntry(v, file) {
+  return { date: st.day.date, product: v.product, godown: v.godown, qty: v.calc.qty, wireItem: v.wireItem, wireRate: v.calc.rate, componentValue: v.calc.compP / 100, scrapQty: v.calc.scrapQty, file };
+}
+function guardDate() { if (!dmyValid($('#dateIn').value)) { toast('Fix the voucher date first (DD-MM-YYYY)', true); $('#dateIn').focus(); return false; } return true; }
+function warnUnlinked() { if (built.unmapped.length) toast(`${built.unmapped.length} name(s) are still not linked and are not included`, true); }
+async function dlOne(id) {
+  if (!guardDate()) return;
+  const v = built.vouchers.find(x => x.id === id); if (!v || !v.calc) return;
+  const name = fileFor(v);
+  download(name, xmlFor(v));
+  await logExport([logEntry(v, name)]);
+  renderAll();
+}
+$('#zipBtn').onclick = async () => {
+  if (!guardDate()) return;
+  const ok = built.vouchers.filter(v => v.calc); if (!ok.length) return;
+  if (typeof JSZip === 'undefined') return toast('ZIP library did not load — use "One XML" instead', true);
+  const zip = new JSZip(), used = new Set(), entries = [];
+  ok.forEach(v => { let n = fileFor(v); if (used.has(n)) n = n.replace(/\.xml$/, ` (${v.id}).xml`); used.add(n); zip.file(n, xmlFor(v)); entries.push(logEntry(v, n)); });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  download(`MFG ${st.day.date} (${ok.length} vouchers).zip`, blob);
+  warnUnlinked();
+  await logExport(entries); renderAll();
+  toast(`${ok.length} XML files downloaded`);
+};
+$('#combinedBtn').onclick = async () => {
+  if (!guardDate()) return;
+  const ok = built.vouchers.filter(v => v.calc); if (!ok.length) return;
+  const name = `MFG ${st.day.date} ALL (${ok.length}).xml`;
+  download(name, envelope(ok.map(v => voucherXml(v, v.calc, S(), ymdOf(st.day.date))), S()));
+  warnUnlinked();
+  await logExport(ok.map(v => logEntry(v, name))); renderAll();
+  toast(`${ok.length} vouchers in one file`);
+};
+
+/* ═══════════ product form ═══════════ */
+const pForm = $('#pForm');
+function updateRateHint() {
+  const f = pForm.elements;
+  const r = wireRateFor({ wireItem: f.wireItem.value, wireMm: f.wireMm.value, wireRate: '' }, S());
+  $('#rateHint').textContent = isFinite(r.rate) ? `Auto: ₹${r.rate}/kg (${r.how})` : 'Set wire size to pick the rate';
+  f.wireMm.placeholder = isFinite(parseMm(f.wireItem.value)) ? String(parseMm(f.wireItem.value)) : 'auto';
+}
+function openProduct(p, alias, mmGuess) {
+  const f = pForm.elements;
+  pForm.reset();
+  pForm.dataset.alias = alias || '';
+  f.id.value = p ? p.id : '';
+  f.product.value = p ? p.product : '';
+  f.aliases.value = p ? p.aliases : (alias || '');
+  f.wireItem.value = p ? p.wireItem : '';
+  f.wireMm.value = p ? p.wireMm : '';
+  f.wireRate.value = p ? p.wireRate : '';
+  f.godown.value = p ? p.godown : S().godown;
+  $('#pTitle').textContent = p ? 'Edit product' : alias ? 'Link “' + alias + '”' : 'Add product';
+  $('#pHint').hidden = !!p;
+  $('#pDel').hidden = !p;
+  if (!p && mmGuess !== '' && mmGuess != null) f.wireMm.value = String(mmGuess);
+  updateRateHint();
+  $('#pDlg').showModal();
+  setTimeout(() => (p ? f.wireItem : f.product).focus(), 50);
+}
+pForm.elements.product.addEventListener('change', () => {
+  // picking an existing product while linking → merge the alias into it
+  const f = pForm.elements; if (f.id.value) return;
+  const ex = st.m.products.find(p => p.product.toLowerCase() === f.product.value.trim().toLowerCase());
+  if (!ex) return;
+  const al = pForm.dataset.alias;
+  const list = String(ex.aliases || '').split(';').map(s => s.trim()).filter(Boolean);
+  if (al && !list.some(x => norm(x) === norm(al))) list.push(al);
+  f.id.value = ex.id; f.aliases.value = list.join('; ');
+  f.wireItem.value = ex.wireItem; f.wireMm.value = ex.wireMm; f.wireRate.value = ex.wireRate; f.godown.value = ex.godown;
+  $('#pTitle').textContent = 'Add name to “' + ex.product + '”';
+  updateRateHint();
+});
+['input', 'change'].forEach(ev => { pForm.elements.wireItem.addEventListener(ev, updateRateHint); pForm.elements.wireMm.addEventListener(ev, updateRateHint); });
+pForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = pForm.elements;
+  const p = {
+    id: f.id.value, product: f.product.value.trim(),
+    aliases: f.aliases.value.split(';').map(s => s.trim()).filter(Boolean).join('; '),
+    wireItem: f.wireItem.value.trim(), wireMm: f.wireMm.value.trim(), wireRate: f.wireRate.value.trim(), godown: f.godown.value.trim(), notes: '',
+  };
+  if (!p.wireMm) { const mm = parseMm(p.wireItem); if (isFinite(mm)) p.wireMm = String(mm); else if (f.wireMm.placeholder && f.wireMm.placeholder !== 'auto') p.wireMm = f.wireMm.placeholder; }
+  // stop a name being linked to two products
+  const mine = p.aliases.split(';').map(norm).filter(Boolean);
+  const clash = st.m.products.find(x => x.id !== p.id && String(x.aliases || '').split(';').map(norm).some(a => mine.includes(a)));
+  if (clash) return toast(`A name here is already linked to “${clash.product}”`, true);
+  const btn = $('#pSave'); btn.disabled = true;
+  try { await saveProduct(p); $('#pDlg').close(); toast('Saved ' + p.product); renderAll(); }
+  catch (err) {} finally { btn.disabled = false; }
+});
+$('#pDel').onclick = async () => {
+  const id = pForm.elements.id.value; if (!id) return;
+  const p = st.m.products.find(x => x.id === id);
+  if (!confirm(`Delete “${p ? p.product : id}” from the masters?`)) return;
+  try { await deleteProduct(id); $('#pDlg').close(); toast('Deleted'); renderAll(); } catch (e) {}
+};
+
+/* ═══════════ masters dialog ═══════════ */
+function renderProducts() {
+  const q = norm($('#pSearch').value);
+  const s = S();
+  const rows = st.m.products.filter(p => !q || norm([p.product, p.aliases, p.wireItem, p.godown].join(' ')).includes(q))
+    .sort((a, b) => a.product.localeCompare(b.product));
+  $('#pRows').innerHTML = rows.length ? rows.map(p => {
+    const r = wireRateFor(p, s);
+    return `<tr class="r" data-pid="${h(p.id)}"><td><b style="font-weight:500">${h(p.product)}</b></td>
+      <td><div class="al">${String(p.aliases || '').split(';').map(a => a.trim()).filter(Boolean).map(a => `<code>${h(a)}</code>`).join('') || '<span class="muted">—</span>'}</div></td>
+      <td>${h(p.wireItem || '—')}</td><td class="num" style="text-align:right">${isFinite(r.rate) ? r.rate : '?'}${r.how === 'override' ? '*' : ''}</td><td>${h(p.godown || s.godown)}</td></tr>`;
+  }).join('') : `<tr><td colspan="5" class="muted" style="padding:24px 10px;text-align:center">${st.m.products.length ? 'Nothing matches.' : 'No products yet. Upload a production file and link the names, or add one here.'}</td></tr>`;
+  $('#mSrc').textContent = (cloudOn() ? 'Google Sheet' : 'This PC only') + ` · ${st.m.products.length} products`;
+}
+$('#pRows').addEventListener('click', e => { const r = e.target.closest('[data-pid]'); if (r) openProduct(st.m.products.find(p => p.id === r.dataset.pid)); });
+$('#pSearch').addEventListener('input', renderProducts);
+$('#pAdd').onclick = () => openProduct(null);
+
+function costRow(c) { return `<div class="cost-row"><input class="in" data-c="ledger" value="${h(c.ledger)}" placeholder="Ledger name"><input class="in num" data-c="pct" value="${h(c.pct)}" inputmode="decimal" placeholder="%"><button type="button" class="btn icon ghost" data-crm title="Remove">${icon('trash')}</button></div>`; }
+function renderSettings() {
+  const s = S();
+  $('#costRows').innerHTML = st.m.costs.map(costRow).join('');
+  const fld = d => `<label class="fld"><span>${h(d.short || d.label)}</span><input class="in${d.num ? ' num' : ''}" data-s="${d.k}" value="${h(s[d.k])}" ${d.num ? 'inputmode="decimal"' : ''}>${d.note ? `<small>${h(d.note)}</small>` : ''}</label>`;
+  $('#setRate').innerHTML = SETTING_DEFS.filter(d => d.grp === 'rate').map(fld).join('');
+  $('#setVch').innerHTML = SETTING_DEFS.filter(d => d.grp === 'vch').map(fld).join('');
+}
+$('#costAdd').onclick = () => $('#costRows').insertAdjacentHTML('beforeend', costRow({ ledger: '', pct: '' }));
+$('#costRows').addEventListener('click', e => { const b = e.target.closest('[data-crm]'); if (b) b.parentElement.remove(); });
+$('#sSave').onclick = async () => {
+  const s = Object.assign({}, S());
+  for (const d of SETTING_DEFS) {
+    const v = $(`[data-s="${d.k}"]`).value.trim();
+    if (d.num) { const n = Number(v); if (v === '' || !isFinite(n)) return toast(d.label + ' must be a number', true); s[d.k] = n; } else s[d.k] = v;
+  }
+  const costs = $$('#costRows .cost-row').map(r => ({ ledger: $('[data-c=ledger]', r).value.trim(), pct: Number($('[data-c=pct]', r).value) })).filter(c => c.ledger);
+  if (costs.some(c => !isFinite(c.pct))) return toast('Every ledger needs a % number', true);
+  const b = $('#sSave'); b.disabled = true;
+  try { await saveSettings(s, costs); toast('Settings saved'); renderAll(); renderSettings(); } catch (e) {} finally { b.disabled = false; }
+};
+function renderSheetPane() {
+  const c = st.cloud;
+  $('#sheetPane').innerHTML = cloudOn() ? `
+    <div class="box" style="max-width:560px">
+      <p style="margin:0 0 6px"><b>Connected</b> as ${h(c.name || c.user)}</p>
+      <p class="muted" style="margin:0 0 14px;font-size:12.5px;overflow-wrap:anywhere">${h(c.url)}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="shReload">${icon('refresh')}Reload from sheet</button><button class="btn ghost" id="shOut">Log out</button></div>
+    </div>
+    <p class="muted" style="font-size:12.5px;max-width:560px;margin-top:14px">Products, cost ledgers and settings live in the sheet tabs <b>Products</b>, <b>Costs</b> and <b>Settings</b>. Edits made directly in the sheet show up after “Reload from sheet”. Every download is written to <b>Export Log</b>.</p>` : `
+    <div class="box" style="max-width:560px">
+      <p style="margin:0 0 6px"><b>Not connected</b></p>
+      <p class="muted" style="margin:0 0 14px;font-size:13px">Masters are kept only in this browser. Log in to load and save them in the Google Sheet so every PC shares the same products.</p>
+      <button class="btn pri" id="shIn">Log in to the sheet</button>
+    </div>`;
+  const rl = $('#shReload'); if (rl) rl.onclick = () => loadMasters();
+  const lo = $('#shOut'); if (lo) lo.onclick = () => { ['pass', 'name'].forEach(LS.del); st.cloud.pass = ''; st.cloud.mode = 'local'; LS.set('mode', 'local'); refreshBadge(); renderSheetPane(); renderProducts(); toast('Logged out — using the copy on this PC'); };
+  const li = $('#shIn'); if (li) li.onclick = () => openLogin();
+}
+function showTab(t) {
+  $$('#mDlg [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  $$('#mDlg [data-pane]').forEach(p => p.hidden = p.dataset.pane !== t);
+  $('#sFoot').hidden = t !== 'set';
+  if (t === 'prod') renderProducts(); if (t === 'set') renderSettings(); if (t === 'sheet') renderSheetPane();
+}
+$$('#mDlg [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+$('#mastersBtn').onclick = () => { showTab('prod'); $('#mDlg').showModal(); };
+$('#syncBadge').onclick = () => { showTab('sheet'); $('#mDlg').showModal(); };
+document.addEventListener('click', e => { const c = e.target.closest('[data-close]'); if (c) c.closest('dialog').close(); });
+$$('dialog').forEach(d => d.addEventListener('click', e => { if (e.target === d && d.id !== 'lDlg') d.close(); }));
+
+/* ═══════════ login ═══════════ */
+function openLogin(err) {
+  const f = $('#lForm').elements;
+  $('#lUrlF').hidden = !!CLOUD_URL;
+  f.url.value = st.cloud.url || ''; f.user.value = st.cloud.user || ''; f.pass.value = '';
+  $('#lErr').hidden = !err; $('#lErr').textContent = err || '';
+  if (!$('#lDlg').open) $('#lDlg').showModal();
+}
+$('#lForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target.elements;
+  const url = CLOUD_URL || f.url.value.trim();
+  if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) { $('#lErr').hidden = false; $('#lErr').textContent = 'Paste the web app link that ends in /exec'; return; }
+  Object.assign(st.cloud, { url, user: f.user.value.trim(), pass: f.pass.value, mode: 'cloud' });
+  const b = $('#lBtn'); b.disabled = true; b.textContent = 'Checking…';
+  try {
+    const j = await api('load');
+    LS.set('url', url); LS.set('user', st.cloud.user); LS.set('pass', st.cloud.pass); LS.set('mode', 'cloud');
+    st.cloud.name = j.user; LS.set('name', j.user);
+    absorb(j); $('#lDlg').close(); refreshBadge(); renderAll(); if ($('#mDlg').open) showTab('sheet');
+    toast('Welcome, ' + j.user);
+  } catch (err) {
+    st.cloud.mode = LS.get('mode', ''); $('#lErr').hidden = false; $('#lErr').textContent = err.message || 'Could not connect';
+  } finally { b.disabled = false; b.textContent = 'Log in'; }
+});
+$('#lLocal').onclick = () => { st.cloud.mode = 'local'; LS.set('mode', 'local'); $('#lDlg').close(); refreshBadge(); renderAll(); };
+$('#lDlg').addEventListener('cancel', e => { if (!st.cloud.mode) e.preventDefault(); });
+
+/* ═══════════ start ═══════════ */
+renderAll();
+if (st.cloud.mode === 'cloud' && st.cloud.url && st.cloud.user && st.cloud.pass) loadMasters(true);
+else if (!st.cloud.mode) openLogin();
+else refreshBadge();
+</script>
+</body>
+</html>
